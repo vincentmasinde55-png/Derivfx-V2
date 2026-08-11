@@ -6,6 +6,7 @@ import RoutePromptDialog from '@/components/route-prompt-dialog';
 import { useAccountSwitching } from '@/hooks/useAccountSwitching';
 import { useLanguageFromURL } from '@/hooks/useLanguageFromURL';
 import { useOAuthCallback } from '@/hooks/useOAuthCallback';
+import { getCodeVerifier, clearCodeVerifier } from '@/components/shared/utils/config/config';
 import { StoreProvider } from '@/hooks/useStore';
 import { OAuthTokenExchangeService } from '@/services/oauth-token-exchange.service';
 import { DerivWSAccountsService } from '@/services/derivws-accounts.service';
@@ -49,10 +50,6 @@ const router = createBrowserRouter(
 function App() {
     const { isProcessing, isValid, params, error, cleanupURL } = useOAuthCallback();
     useAccountSwitching();
-    // React StrictMode can run effects more than once. An OAuth authorization
-    // code is single-use and the PKCE verifier is cleared after the first
-    // exchange, so guard this callback by code to prevent a second exchange
-    // from producing a misleading "PKCE verifier is missing" dialog.
     const processedCodeRef = useRef<string | null>(null);
 
     useEffect(() => {
@@ -64,12 +61,24 @@ function App() {
 
         const finishOAuth = async () => {
             try {
-                const response = await OAuthTokenExchangeService.exchangeCodeForToken(params.code!);
+                // The verifier is deliberately read only after returning from
+                // Deriv. It is stored in a .derivfx.site cookie, so it survives
+                // an OAuth callback that lands on www.derivfx.site.
+                const codeVerifier = getCodeVerifier();
+                if (!codeVerifier) {
+                    throw new Error('OAuth state or PKCE verification data is missing. Please restart login.');
+                }
+
+                const response = await OAuthTokenExchangeService.exchangeCodeForToken(params.code!, codeVerifier);
+                clearCodeVerifier();
                 if (cancelled) return;
 
                 if (!response.access_token) {
                     processedCodeRef.current = null;
                     console.error('❌ Deriv OAuth token exchange failed:', response.error_description || response.error);
+                    window.dispatchEvent(new CustomEvent('derivfx-auth-error', {
+                        detail: response.error_description || response.error || 'Deriv login failed.',
+                    }));
                     return;
                 }
 
@@ -94,8 +103,6 @@ function App() {
                 }));
             } catch (oauthError) {
                 if (!cancelled) {
-                    // A successful token exchange/account load means this is
-                    // not an OAuth login failure; only report the actual error.
                     console.error('❌ Deriv account initialization failed:', oauthError);
                     window.dispatchEvent(new CustomEvent('derivfx-auth-error', {
                         detail: oauthError instanceof Error ? oauthError.message : 'Unable to initialize Deriv account.',
