@@ -175,24 +175,29 @@ class APIBase {
         const wsUrl = 'wss://api.derivws.com/trading/v1/options/ws/public';
         return new Promise((resolve, reject) => {
             let settled = false;
-            const ws = new WebSocket(wsUrl);
+            let ws: WebSocket | null = null;
+            try { ws = new WebSocket(wsUrl); } catch (error) { reject(error); return; }
             const timeoutId = window.setTimeout(() => {
                 if (settled) return;
                 settled = true;
-                try { ws.close(); } catch {}
+                try { ws?.close(); } catch {}
                 reject(new Error('New Deriv public WebSocket timed out while loading active symbols.'));
             }, this.PUBLIC_WS_TIMEOUT_MS);
             const finish = (callback: () => void) => {
                 if (settled) return;
-                settled = true; window.clearTimeout(timeoutId);
-                try { ws.close(); } catch {}
+                settled = true;
+                window.clearTimeout(timeoutId);
+                try { ws?.close(); } catch {}
                 callback();
             };
-            ws.addEventListener('open', () => ws.send(JSON.stringify({ active_symbols: 'brief', req_id: Date.now() })));
+            ws.addEventListener('open', () => {
+                ws?.send(JSON.stringify({ active_symbols: 'brief', req_id: Date.now() }));
+            });
             ws.addEventListener('message', event => {
                 try {
                     const response = JSON.parse(event.data);
                     if (response.error) return finish(() => reject(new Error(response.error.message || 'Deriv public API error')));
+                    if (Array.isArray(response.errors) && response.errors.length) return finish(() => reject(new Error(response.errors[0]?.message || 'Deriv public API error')));
                     if (response.msg_type === 'active_symbols' && Array.isArray(response.active_symbols)) {
                         const normalizedSymbols = response.active_symbols.map(symbol => ({
                             ...symbol,
@@ -214,12 +219,18 @@ class APIBase {
     };
 
     getActiveSymbols = async () => {
-        if (!this.api) throw new Error('API connection not available for fetching active symbols');
         try {
-            const apiResult = !this.is_authorized ? await this.getPublicActiveSymbols() : await Promise.race([
-                doUntilDone(() => this.api?.send({ active_symbols: 'brief' }), [], this),
-                new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Active symbols fetch timeout')), this.ACTIVE_SYMBOLS_TIMEOUT_MS)),
-            ]);
+            // Public market data is intentionally independent of the legacy
+            // DerivAPIBasic connection. This is the startup path for the new API.
+            // If an authenticated new/legacy socket is already available, use it;
+            // otherwise use the public Options WebSocket directly.
+            const apiResult = this.is_authorized && this.api
+                ? await Promise.race([
+                      doUntilDone(() => this.api?.send({ active_symbols: 'brief' }), [], this),
+                      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Active symbols fetch timeout')), this.ACTIVE_SYMBOLS_TIMEOUT_MS)),
+                  ])
+                : await this.getPublicActiveSymbols();
+
             const activeSymbols = Array.isArray(apiResult) ? apiResult : (apiResult as any)?.active_symbols || [];
             if (!activeSymbols.length) throw new Error('No active symbols received from the new Deriv API.');
             this.has_active_symbols = true;
@@ -230,10 +241,18 @@ class APIBase {
                 ]);
                 this.active_symbols = processedResult.enrichedSymbols;
                 this.pip_sizes = processedResult.pipSizes;
-            } catch (enrichmentError) { console.warn('Symbol enrichment failed, using raw symbols:', enrichmentError); this.active_symbols = activeSymbols; this.pip_sizes = {}; }
+            } catch (enrichmentError) {
+                console.warn('Symbol enrichment failed, using raw symbols:', enrichmentError);
+                this.active_symbols = activeSymbols;
+                this.pip_sizes = {};
+            }
             this.toggleRunButton(false);
             return this.active_symbols;
-        } catch (error) { this.has_active_symbols = false; console.error('Failed to fetch and process active symbols:', error); throw error; }
+        } catch (error) {
+            this.has_active_symbols = false;
+            console.error('Failed to fetch and process active symbols:', error);
+            throw error;
+        }
     };
 
     toggleRunButton = (toggle: boolean) => { const run_button = document.querySelector('#db-animation__run-button'); if (run_button) (run_button as HTMLButtonElement).disabled = toggle; };
