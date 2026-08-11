@@ -30,11 +30,11 @@ The application uses a centralized `ErrorLogger` utility that provides standardi
 
 ### Why Centralized Logging?
 
-| Before (Inconsistent)                                    | After (Centralized)                                  |
-| -------------------------------------------------------- | ---------------------------------------------------- |
-| `console.error('[OAuth] Error parsing auth_info:', e)`   | `ErrorLogger.error('OAuth', 'Error parsing auth_info', e)` |
-| `console.error('Logout failed:', e)`                     | `ErrorLogger.error('Logout', 'Logout failed', e)`   |
-| `console.warn('Failed to clear cache')`                  | `ErrorLogger.warn('Storage', 'Failed to clear cache')` |
+| Before (Inconsistent)                                  | After (Centralized)                                        |
+| ------------------------------------------------------ | ---------------------------------------------------------- |
+| `console.error('[OAuth] Error parsing auth_info:', e)` | `ErrorLogger.error('OAuth', 'Error parsing auth_info', e)` |
+| `console.error('Logout failed:', e)`                   | `ErrorLogger.error('Logout', 'Logout failed', e)`          |
+| `console.warn('Failed to clear cache')`                | `ErrorLogger.warn('Storage', 'Failed to clear cache')`     |
 
 Benefits: consistent format, centralized control, easy integration with Sentry/TrackJS, searchable by category, context metadata support, configurable log levels.
 
@@ -46,10 +46,10 @@ Benefits: consistent format, centralized control, easy integration with Sentry/T
 
 ```typescript
 enum LogLevel {
-    ERROR = 'error',  // Critical errors that break functionality
-    WARN  = 'warn',   // Non-critical issues, degraded experience
-    INFO  = 'info',   // Important operational events
-    DEBUG = 'debug',  // Detailed diagnostic information
+    ERROR = 'error', // Critical errors that break functionality
+    WARN = 'warn', // Non-critical issues, degraded experience
+    INFO = 'info', // Important operational events
+    DEBUG = 'debug', // Detailed diagnostic information
 }
 ```
 
@@ -175,19 +175,19 @@ ErrorLogger.info('Auth', 'User logged in successfully', {
 
 Use clear, consistent category names that identify the subsystem:
 
-| Category        | Description                  |
-| --------------- | ---------------------------- |
-| `OAuth`         | OAuth authentication         |
-| `Logout`        | Logout operations            |
-| `InvalidToken`  | Invalid token handling       |
-| `ClientStore`   | Client state management      |
-| `Storage`       | Browser storage operations   |
-| `API`           | REST API calls               |
-| `WebSocket`     | WebSocket operations         |
-| `Bot`           | Bot execution engine         |
-| `Blockly`       | Blockly workspace            |
-| `Chart`         | Chart component              |
-| `Analytics`     | Analytics tracking           |
+| Category       | Description                |
+| -------------- | -------------------------- |
+| `OAuth`        | OAuth authentication       |
+| `Logout`       | Logout operations          |
+| `InvalidToken` | Invalid token handling     |
+| `ClientStore`  | Client state management    |
+| `Storage`      | Browser storage operations |
+| `API`          | REST API calls             |
+| `WebSocket`    | WebSocket operations       |
+| `Bot`          | Bot execution engine       |
+| `Blockly`      | Blockly workspace          |
+| `Chart`        | Chart component            |
+| `Analytics`    | Analytics tracking         |
 
 ---
 
@@ -209,9 +209,9 @@ Use clear, consistent category names that identify the subsystem:
 ```typescript
 if (process.env.NODE_ENV === 'production') {
     ErrorLogger.configure({
-        enableConsole: false,         // Suppress console output
-        minLogLevel: LogLevel.WARN,   // Only warnings and errors
-        enableErrorReporting: true,   // Send to reporting service
+        enableConsole: false, // Suppress console output
+        minLogLevel: LogLevel.WARN, // Only warnings and errors
+        enableErrorReporting: true, // Send to reporting service
     });
 
     ErrorLogger.setErrorReportingService(new SentryErrorReportingService());
@@ -223,9 +223,9 @@ if (process.env.NODE_ENV === 'production') {
 ```typescript
 if (process.env.NODE_ENV === 'development') {
     ErrorLogger.configure({
-        enableConsole: true,          // Full console output
-        minLogLevel: LogLevel.DEBUG,  // Log everything
-        enableErrorReporting: false,  // Don't pollute external service
+        enableConsole: true, // Full console output
+        minLogLevel: LogLevel.DEBUG, // Log everything
+        enableErrorReporting: false, // Don't pollute external service
     });
 }
 ```
@@ -405,10 +405,10 @@ ErrorLogger.error('API', 'Request failed', error);
 ### Use Appropriate Log Levels
 
 ```typescript
-ErrorLogger.error('Auth', 'Login failed', error);      // Critical - broken functionality
-ErrorLogger.warn('Cache', 'Cache miss for key');         // Warning - degraded performance
-ErrorLogger.info('Auth', 'User logged in');              // Info - operational event
-ErrorLogger.debug('WebSocket', 'Ping sent');             // Debug - diagnostic detail
+ErrorLogger.error('Auth', 'Login failed', error); // Critical - broken functionality
+ErrorLogger.warn('Cache', 'Cache miss for key'); // Warning - degraded performance
+ErrorLogger.info('Auth', 'User logged in'); // Info - operational event
+ErrorLogger.debug('WebSocket', 'Ping sent'); // Debug - diagnostic detail
 ```
 
 ### Never Log Sensitive Data

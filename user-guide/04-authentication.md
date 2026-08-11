@@ -26,17 +26,17 @@ The application uses **OAuth 2.0 with PKCE** (Proof Key for Code Exchange) for a
 
 ### Key Components
 
-| Component                      | File                                           | Responsibility                    |
-| ------------------------------ | ---------------------------------------------- | --------------------------------- |
-| OAuth callback handling        | `src/hooks/useOAuthCallback.ts`                | Extract & validate OAuth params from URL |
-| OAuth URL generation           | `src/components/shared/utils/config/config.ts` | Generate login URL with PKCE      |
-| Token exchange                 | `src/services/oauth-token-exchange.service.ts`  | Exchange auth code for tokens     |
-| Account management             | `src/services/derivws-accounts.service.ts`     | Fetch and store user accounts     |
-| Client state                   | `src/stores/client-store.ts`                   | Manage auth state in MobX         |
-| Logout hook                    | `src/hooks/useLogout.ts`                       | Handle logout operations          |
-| Invalid token handler          | `src/hooks/useInvalidTokenHandler.ts`          | Detect and recover from bad tokens|
-| API bridge                     | `src/app/CoreStoreProvider.tsx`                | Bridge API events to MobX stores  |
-| App (OAuth orchestrator)       | `src/app/App.tsx`                              | Orchestrates callback + token exchange |
+| Component                | File                                           | Responsibility                           |
+| ------------------------ | ---------------------------------------------- | ---------------------------------------- |
+| OAuth callback handling  | `src/hooks/useOAuthCallback.ts`                | Extract & validate OAuth params from URL |
+| OAuth URL generation     | `src/components/shared/utils/config/config.ts` | Generate login URL with PKCE             |
+| Token exchange           | `src/services/oauth-token-exchange.service.ts` | Exchange auth code for tokens            |
+| Account management       | `src/services/derivws-accounts.service.ts`     | Fetch and store user accounts            |
+| Client state             | `src/stores/client-store.ts`                   | Manage auth state in MobX                |
+| Logout hook              | `src/hooks/useLogout.ts`                       | Handle logout operations                 |
+| Invalid token handler    | `src/hooks/useInvalidTokenHandler.ts`          | Detect and recover from bad tokens       |
+| API bridge               | `src/app/CoreStoreProvider.tsx`                | Bridge API events to MobX stores         |
+| App (OAuth orchestrator) | `src/app/App.tsx`                              | Orchestrates callback + token exchange   |
 
 > **Note:** There is no separate callback page. The OAuth provider redirects back to the root URL (`/`) with query parameters (`?code=...&state=...`). The `App` component handles the callback inline using the `useOAuthCallback` hook.
 
@@ -136,7 +136,8 @@ export const generateOAuthURL = async (prompt?: string) => {
     storeCodeVerifier(codeVerifier);
 
     // Build OAuth URL
-    let oauthUrl = `${hostname}auth?` +
+    let oauthUrl =
+        `${hostname}auth?` +
         `response_type=code&` +
         `client_id=${clientId}&` +
         `redirect_uri=${encodeURIComponent(redirectUrl)}&` +
@@ -263,13 +264,13 @@ PKCE (RFC 7636) adds security to the OAuth flow by preventing authorization code
 
 ### PKCE Helper Functions
 
-| Function                  | Description                                     |
-| ------------------------- | ----------------------------------------------- |
-| `generateCodeVerifier()`  | Creates a 43-character random string            |
-| `generateCodeChallenge()` | Computes SHA-256 hash, returns base64url string |
-| `storeCodeVerifier()`     | Stores verifier in sessionStorage with timestamp|
+| Function                  | Description                                      |
+| ------------------------- | ------------------------------------------------ |
+| `generateCodeVerifier()`  | Creates a 43-character random string             |
+| `generateCodeChallenge()` | Computes SHA-256 hash, returns base64url string  |
+| `storeCodeVerifier()`     | Stores verifier in sessionStorage with timestamp |
 | `getCodeVerifier()`       | Retrieves verifier (validates not expired)       |
-| `clearCodeVerifier()`     | Removes verifier after successful exchange      |
+| `clearCodeVerifier()`     | Removes verifier after successful exchange       |
 
 ### Expiration
 
@@ -293,13 +294,13 @@ PKCE uses these Web APIs (supported in all modern browsers):
 
 The `OAuthTokenExchangeService` class provides:
 
-| Method                       | Description                              |
-| ---------------------------- | ---------------------------------------- |
-| `exchangeCodeForToken(code)` | Exchange authorization code for tokens   |
-| `getAuthInfo()`              | Retrieve stored auth info (checks expiry)|
-| `getAccessToken()`           | Get current access token                 |
-| `isAuthenticated()`          | Check if user has valid token            |
-| `clearAuthInfo()`            | Clear all auth data from storage         |
+| Method                       | Description                               |
+| ---------------------------- | ----------------------------------------- |
+| `exchangeCodeForToken(code)` | Exchange authorization code for tokens    |
+| `getAuthInfo()`              | Retrieve stored auth info (checks expiry) |
+| `getAccessToken()`           | Get current access token                  |
+| `isAuthenticated()`          | Check if user has valid token             |
+| `clearAuthInfo()`            | Clear all auth data from storage          |
 
 ### Token Expiration Handling
 
@@ -319,12 +320,12 @@ static getAuthInfo(): AuthInfo | null {
 
 ### Error Responses
 
-| Error Code             | Description                               | Recovery                |
-| ---------------------- | ----------------------------------------- | ----------------------- |
-| `no_accounts`          | No accounts returned after auth           | Fallback to default     |
-| `account_fetch_failed` | Failed to fetch accounts from API         | Retry or re-authenticate|
-| `network_error`        | Network or parsing error during exchange  | Retry with backoff      |
-| `invalid_request`      | PKCE code verifier not found or expired   | Restart login flow      |
+| Error Code             | Description                              | Recovery                 |
+| ---------------------- | ---------------------------------------- | ------------------------ |
+| `no_accounts`          | No accounts returned after auth          | Fallback to default      |
+| `account_fetch_failed` | Failed to fetch accounts from API        | Retry or re-authenticate |
+| `network_error`        | Network or parsing error during exchange | Retry with backoff       |
+| `invalid_request`      | PKCE code verifier not found or expired  | Restart login flow       |
 
 ---
 
@@ -449,9 +450,7 @@ The full logout sequence:
 Auth errors from WebSocket messages trigger automatic logout:
 
 ```typescript
-if (error?.code === 'AuthorizationRequired' ||
-    error?.code === 'DisabledClient' ||
-    error?.code === 'InvalidToken') {
+if (error?.code === 'AuthorizationRequired' || error?.code === 'DisabledClient' || error?.code === 'InvalidToken') {
     clearInvalidTokenParams();
     await client?.logout();
 }
@@ -513,13 +512,13 @@ The application validates the user's session on:
 
 The WebSocket connection is regenerated when:
 
-| Trigger                  | Action                                    |
-| ------------------------ | ----------------------------------------- |
-| Account switch           | New WebSocket with different account_id   |
-| Tab returns with changed account | Detect mismatch, regenerate       |
-| Connection lost          | Reconnect with current account            |
-| OAuth login complete     | Switch from public to authenticated       |
-| Page refresh             | Re-establish connection from storage      |
+| Trigger                          | Action                                  |
+| -------------------------------- | --------------------------------------- |
+| Account switch                   | New WebSocket with different account_id |
+| Tab returns with changed account | Detect mismatch, regenerate             |
+| Connection lost                  | Reconnect with current account          |
+| OAuth login complete             | Switch from public to authenticated     |
+| Page refresh                     | Re-establish connection from storage    |
 
 ### Reconnection Strategy
 
@@ -527,7 +526,8 @@ The API layer tracks reconnection attempts with a maximum of **5 attempts**:
 
 ```typescript
 reconnectIfNotConnected = () => {
-    if (this.api?.connection?.readyState > 1) { // CLOSING or CLOSED
+    if (this.api?.connection?.readyState > 1) {
+        // CLOSING or CLOSED
         this.reconnection_attempts += 1;
 
         if (this.reconnection_attempts >= 5) {
@@ -557,21 +557,21 @@ window.addEventListener('focus', this.reconnectIfNotConnected);
 
 ### Security Features
 
-| Feature                | Implementation                                   |
-| ---------------------- | ------------------------------------------------ |
-| PKCE                   | Code verifier/challenge prevents code interception|
-| CSRF Protection        | `state` parameter validated on callback          |
-| Token in sessionStorage| Cleared on tab close (more secure than localStorage)|
-| Token expiration       | Automatic expiry checking on every access        |
-| Secure WebSocket       | Always uses WSS (WebSocket Secure) protocol      |
-| Complete logout cleanup| All auth data cleared from all storage layers    |
-| No XSS vulnerability   | Proper token handling, no inline scripts         |
+| Feature                 | Implementation                                       |
+| ----------------------- | ---------------------------------------------------- |
+| PKCE                    | Code verifier/challenge prevents code interception   |
+| CSRF Protection         | `state` parameter validated on callback              |
+| Token in sessionStorage | Cleared on tab close (more secure than localStorage) |
+| Token expiration        | Automatic expiry checking on every access            |
+| Secure WebSocket        | Always uses WSS (WebSocket Secure) protocol          |
+| Complete logout cleanup | All auth data cleared from all storage layers        |
+| No XSS vulnerability    | Proper token handling, no inline scripts             |
 
 ### Important Notes
 
 1. **sessionStorage vs localStorage:**
-   - `sessionStorage` for sensitive tokens (cleared on tab close)
-   - `localStorage` for account identifiers (needed for multi-tab support)
+    - `sessionStorage` for sensitive tokens (cleared on tab close)
+    - `localStorage` for account identifiers (needed for multi-tab support)
 
 2. **Token refresh:** Refresh tokens are stored but automatic refresh is not yet implemented. Currently, expired tokens trigger re-authentication.
 
@@ -583,50 +583,50 @@ window.addEventListener('focus', this.reconnectIfNotConnected);
 
 ### Core Authentication
 
-| File                                       | Purpose                           |
-| ------------------------------------------ | --------------------------------- |
-| `src/app/App.tsx`                          | OAuth orchestrator + app entry    |
-| `src/app/CoreStoreProvider.tsx`            | API-to-store bridge               |
-| `src/hooks/useOAuthCallback.ts`            | OAuth callback param extraction & CSRF validation |
+| File                            | Purpose                                           |
+| ------------------------------- | ------------------------------------------------- |
+| `src/app/App.tsx`               | OAuth orchestrator + app entry                    |
+| `src/app/CoreStoreProvider.tsx` | API-to-store bridge                               |
+| `src/hooks/useOAuthCallback.ts` | OAuth callback param extraction & CSRF validation |
 
 ### Services
 
-| File                                       | Purpose                           |
-| ------------------------------------------ | --------------------------------- |
+| File                                           | Purpose                       |
+| ---------------------------------------------- | ----------------------------- |
 | `src/services/oauth-token-exchange.service.ts` | Token exchange and management |
-| `src/services/derivws-accounts.service.ts`  | Account fetching and storage     |
+| `src/services/derivws-accounts.service.ts`     | Account fetching and storage  |
 
 ### API Layer
 
-| File                                       | Purpose                           |
-| ------------------------------------------ | --------------------------------- |
-| `src/external/bot-skeleton/services/api/api-base.ts` | WebSocket management    |
-| `src/external/bot-skeleton/services/api/appId.js` | WebSocket instance creation |
-| `src/external/bot-skeleton/services/api/observables/connection-status-stream.ts` | RxJS streams |
+| File                                                                             | Purpose                     |
+| -------------------------------------------------------------------------------- | --------------------------- |
+| `src/external/bot-skeleton/services/api/api-base.ts`                             | WebSocket management        |
+| `src/external/bot-skeleton/services/api/appId.js`                                | WebSocket instance creation |
+| `src/external/bot-skeleton/services/api/observables/connection-status-stream.ts` | RxJS streams                |
 
 ### Stores
 
-| File                                       | Purpose                           |
-| ------------------------------------------ | --------------------------------- |
-| `src/stores/client-store.ts`               | Client state, logout, session     |
-| `src/stores/root-store.ts`                 | Root store initialization         |
+| File                         | Purpose                       |
+| ---------------------------- | ----------------------------- |
+| `src/stores/client-store.ts` | Client state, logout, session |
+| `src/stores/root-store.ts`   | Root store initialization     |
 
 ### Hooks
 
-| File                                       | Purpose                           |
-| ------------------------------------------ | --------------------------------- |
-| `src/hooks/useOAuthCallback.ts`            | OAuth callback param extraction & CSRF validation |
-| `src/hooks/useLogout.ts`                   | Logout handler for components     |
-| `src/hooks/useInvalidTokenHandler.ts`      | Invalid token recovery            |
-| `src/hooks/useAccountSwitching.ts`         | Account switching via URL params  |
-| `src/hooks/useApiBase.ts`                  | API base access hook              |
+| File                                  | Purpose                                           |
+| ------------------------------------- | ------------------------------------------------- |
+| `src/hooks/useOAuthCallback.ts`       | OAuth callback param extraction & CSRF validation |
+| `src/hooks/useLogout.ts`              | Logout handler for components                     |
+| `src/hooks/useInvalidTokenHandler.ts` | Invalid token recovery                            |
+| `src/hooks/useAccountSwitching.ts`    | Account switching via URL params                  |
+| `src/hooks/useApiBase.ts`             | API base access hook                              |
 
 ### Configuration
 
-| File                                       | Purpose                           |
-| ------------------------------------------ | --------------------------------- |
-| `src/components/shared/utils/config/config.ts` | PKCE helpers, OAuth URL gen  |
-| `brand.config.json`                        | Auth endpoint URLs (do not change `auth2_url`) |
+| File                                           | Purpose                                        |
+| ---------------------------------------------- | ---------------------------------------------- |
+| `src/components/shared/utils/config/config.ts` | PKCE helpers, OAuth URL gen                    |
+| `brand.config.json`                            | Auth endpoint URLs (do not change `auth2_url`) |
 
 ---
 
@@ -672,13 +672,13 @@ In the browser Network tab, look for the token exchange POST request:
 
 ### Common Issues
 
-| Problem                         | Cause                          | Solution                        |
-| ------------------------------- | ------------------------------ | ------------------------------- |
-| Infinite redirect loop          | Invalid token + page reload    | Clear storage, redirect to OAuth|
-| "PKCE code verifier not found"  | Expired after 10 minutes       | Restart login flow              |
-| "No accounts available"         | No trading accounts on server  | Check account status            |
-| WebSocket auth fails            | Token expired during session   | Token exchange triggers re-auth |
-| Login works but state not updated| CoreStoreProvider not bridging | Check observable subscriptions  |
+| Problem                           | Cause                          | Solution                         |
+| --------------------------------- | ------------------------------ | -------------------------------- |
+| Infinite redirect loop            | Invalid token + page reload    | Clear storage, redirect to OAuth |
+| "PKCE code verifier not found"    | Expired after 10 minutes       | Restart login flow               |
+| "No accounts available"           | No trading accounts on server  | Check account status             |
+| WebSocket auth fails              | Token expired during session   | Token exchange triggers re-auth  |
+| Login works but state not updated | CoreStoreProvider not bridging | Check observable subscriptions   |
 
 ---
 
@@ -712,11 +712,11 @@ In the browser Network tab, look for the token exchange POST request:
 
 ### Unit Tests Needed
 
-| Test File                              | What to Test                     |
-| -------------------------------------- | -------------------------------- |
+| Test File                              | What to Test                                         |
+| -------------------------------------- | ---------------------------------------------------- |
 | `useLogout.spec.ts`                    | Successful logout, error fallbacks, storage clearing |
-| `useInvalidTokenHandler.spec.ts`       | Token detection, OAuth redirect, fallback reload |
-| `oauth-token-exchange.service.spec.ts` | Token exchange, expiration, errors |
+| `useInvalidTokenHandler.spec.ts`       | Token detection, OAuth redirect, fallback reload     |
+| `oauth-token-exchange.service.spec.ts` | Token exchange, expiration, errors                   |
 
 ---
 

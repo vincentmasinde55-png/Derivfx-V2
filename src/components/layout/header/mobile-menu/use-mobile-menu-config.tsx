@@ -30,7 +30,6 @@ const useMobileMenuConfig = (
     const { is_dark_mode_on, toggleTheme } = useThemeSwitcher();
 
     const menuConfig = useMemo((): TMenuConfig[] => {
-
         return [
             [
                 // ========================================

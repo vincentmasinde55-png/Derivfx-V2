@@ -137,7 +137,7 @@ Login does not work out of the box — Deriv needs to know about your domain bef
 3. Set it as `CLIENT_ID` in `.env` for local development, and in your deployment environment's secrets (e.g., Vercel → Project Settings → Environment Variables) for staging/production.
 4. Also set `platform.hostname.production.com` in `brand.config.json` to the same hostname you registered (no protocol, no trailing slash). The code uses this value to decide whether to connect to the production or staging WebSocket — if it doesn't match your deployed hostname, the app will silently run against staging in production.
 
-> **Practical tip:** For a brand-new deploy you usually need to ship once to get a stable hostname *before* you can register with Deriv. See [Deployment — Example: deploying to Vercel](../README.md#example-deploying-to-vercel) for one concrete order of operations; the same shape applies to other static hosts.
+> **Practical tip:** For a brand-new deploy you usually need to ship once to get a stable hostname _before_ you can register with Deriv. See [Deployment — Example: deploying to Vercel](../README.md#example-deploying-to-vercel) for one concrete order of operations; the same shape applies to other static hosts.
 
 > Do not change the `platform.auth2_url` values in `brand.config.json` — they must stay pointed at Deriv's OAuth server. See [Authentication](./04-authentication.md) and [Changelog — Configuration Constraints](./08-changelog.md#configuration-constraints).
 
@@ -230,10 +230,10 @@ trading-bot-template/
 
 ### Building
 
-| Command                 | Description                                       |
-| ----------------------- | ------------------------------------------------- |
-| `npm run build`         | Production build to `dist/`                       |
-| `npm run build:analyze` | Production build + bundle analyzer (port 8888)    |
+| Command                 | Description                                    |
+| ----------------------- | ---------------------------------------------- |
+| `npm run build`         | Production build to `dist/`                    |
+| `npm run build:analyze` | Production build + bundle analyzer (port 8888) |
 
 ### Testing
 
@@ -266,13 +266,13 @@ Environment variables are injected via RSBuild's `source.define` in `rsbuild.con
 
 ### Authentication (Required for Login)
 
-| Variable       | Required?        | Description                                                                             | Example                           |
-| -------------- | ---------------- | --------------------------------------------------------------------------------------- | --------------------------------- |
-| `CLIENT_ID`    | Yes              | OAuth client ID you registered with Deriv for your domain                               | `32izC2lBT4MmiSNWuxq2l`           |
-| `APP_ID`       | Optional         | Legacy Deriv API app ID (only needed if you maintain a Legacy Deriv API app)            | `12345`                           |
-| `GD_CLIENT_ID` | Optional         | Google Drive OAuth client (enables cloud save/load for strategies)                      | `xxxx.apps.googleusercontent.com` |
-| `GD_APP_ID`    | Optional         | Google Drive app ID                                                                     | `123456789`                       |
-| `GD_API_KEY`   | Optional         | Google Drive API key                                                                    | `AIza...`                         |
+| Variable       | Required? | Description                                                                  | Example                           |
+| -------------- | --------- | ---------------------------------------------------------------------------- | --------------------------------- |
+| `CLIENT_ID`    | Yes       | OAuth client ID you registered with Deriv for your domain                    | `32izC2lBT4MmiSNWuxq2l`           |
+| `APP_ID`       | Optional  | Legacy Deriv API app ID (only needed if you maintain a Legacy Deriv API app) | `12345`                           |
+| `GD_CLIENT_ID` | Optional  | Google Drive OAuth client (enables cloud save/load for strategies)           | `xxxx.apps.googleusercontent.com` |
+| `GD_APP_ID`    | Optional  | Google Drive app ID                                                          | `123456789`                       |
+| `GD_API_KEY`   | Optional  | Google Drive API key                                                         | `AIza...`                         |
 
 ### Translations (Optional)
 

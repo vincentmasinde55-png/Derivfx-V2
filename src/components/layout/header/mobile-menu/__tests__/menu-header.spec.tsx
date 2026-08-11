@@ -17,7 +17,7 @@ jest.mock('@deriv-com/translations', () => ({
 
 // [AI] Mock BrandLogo component
 jest.mock('@/components/layout/app-logo/BrandLogo', () => ({
-    BrandLogo: () => <div data-testid="brand-logo">Brand Logo</div>,
+    BrandLogo: () => <div data-testid='brand-logo'>Brand Logo</div>,
 }));
 // [/AI]
 
