@@ -1,24 +1,19 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense } from 'react';
 import { observer } from 'mobx-react-lite';
 import ErrorBoundary from '@/components/error-component/error-boundary';
 import ErrorComponent from '@/components/error-component/error-component';
 import ChunkLoader from '@/components/loader/chunk-loader';
-import { api_base } from '@/external/bot-skeleton';
 import { useStore } from '@/hooks/useStore';
 import { localize } from '@deriv-com/translations';
 import './app-root.scss';
 
 const AppContent = lazy(() => import('./app-content'));
 
-const AppRootLoader = () => {
-    return <ChunkLoader message={localize('Loading...')} />;
-};
+const AppRootLoader = () => <ChunkLoader message={localize('Loading...')} />;
 
 const ErrorComponentWrapper = observer(() => {
     const { common } = useStore();
-
     if (!common.error) return null;
-
     return (
         <ErrorComponent
             header={common.error?.header}
@@ -33,39 +28,16 @@ const ErrorComponentWrapper = observer(() => {
     );
 });
 
+/**
+ * The root application never initializes Deriv.
+ *
+ * Deriv authentication/trading connections are deliberately lazy and must be
+ * started by the login flow. This prevents a public visitor from being blocked
+ * by a WebSocket/API outage before the UI can render.
+ */
 const AppRoot = () => {
     const store = useStore();
-    const api_base_initialized = useRef(false);
-    const [is_api_initialized, setIsApiInitialized] = useState(false);
-
-    // Initialize API
-    useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            if (!is_api_initialized) {
-                setIsApiInitialized(true);
-            }
-        }, 5000);
-
-        const initializeApi = async () => {
-            if (!api_base_initialized.current) {
-                try {
-                    await api_base.init();
-                    api_base_initialized.current = true;
-                } catch (error) {
-                    console.error('API initialization failed:', error);
-                    api_base_initialized.current = false;
-                } finally {
-                    setIsApiInitialized(true);
-                    clearTimeout(timeoutId); // Clear timeout if API init completes
-                }
-            }
-        };
-
-        initializeApi();
-        return () => clearTimeout(timeoutId);
-    }, []);
-
-    if (!store || !is_api_initialized) return <AppRootLoader />;
+    if (!store) return <AppRootLoader />;
 
     return (
         <Suspense fallback={<AppRootLoader />}>
