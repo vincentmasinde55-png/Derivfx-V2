@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, type ReactNode } from 'react';
 import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } from 'react-router-dom';
 import ChunkLoader from '@/components/loader/chunk-loader';
 import LocalStorageSyncWrapper from '@/components/localStorage-sync-wrapper';
@@ -6,7 +6,7 @@ import RoutePromptDialog from '@/components/route-prompt-dialog';
 import { useAccountSwitching } from '@/hooks/useAccountSwitching';
 import { useLanguageFromURL } from '@/hooks/useLanguageFromURL';
 import { useOAuthCallback } from '@/hooks/useOAuthCallback';
-import { StoreProvider } from '@/hooks/useStore';
+import { useStore } from '@/hooks/useStore';
 import { OAuthTokenExchangeService } from '@/services/oauth-token-exchange.service';
 import { initializeI18n, localize, TranslationProvider } from '@deriv-com/translations';
 import CoreStoreProvider from './CoreStoreProvider';
@@ -17,7 +17,7 @@ const AppRoot = lazy(() => import('./app-root'));
 
 const i18nInstance = initializeI18n({ cdnUrl: '' });
 
-const LanguageHandler = ({ children }: { children: React.ReactNode }) => {
+const LanguageHandler = ({ children }: { children: ReactNode }) => {
     useLanguageFromURL();
     return <>{children}</>;
 };
@@ -67,7 +67,6 @@ function App() {
                     return;
                 }
 
-                // Keep the callback URL clean only after the token has been stored.
                 cleanupURL();
                 window.dispatchEvent(new Event('derivfx-authenticated'));
             } catch (oauthError) {
