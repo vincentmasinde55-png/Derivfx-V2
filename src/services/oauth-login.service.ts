@@ -2,8 +2,6 @@ import { OAuthTokenExchangeService } from './oauth-token-exchange.service';
 import { DerivWSAccountsService, DerivAccount } from './derivws-accounts.service';
 
 // OAuth state/PKCE data must survive the round-trip to auth.deriv.com.
-// sessionStorage is preferred, with localStorage as a browser-safe fallback
-// for cases where the browser/webview clears the session during navigation.
 const VERIFIER_KEY = 'oauth_code_verifier';
 const VERIFIER_TIMESTAMP_KEY = 'oauth_code_verifier_timestamp';
 const STATE_KEY = 'oauth_csrf_token';
@@ -28,7 +26,7 @@ const safeSet = (storage: Storage, key: string, value: string) => {
     try {
         storage.setItem(key, value);
     } catch {
-        // Private/restricted browser storage can fail; the other storage is tried.
+        // Restricted/private browser storage: use the other storage layer.
     }
 };
 
@@ -50,16 +48,8 @@ const readOAuthValue = (key: string) => {
 };
 
 const clearOAuthValue = (key: string) => {
-    try {
-        sessionStorage.removeItem(key);
-    } catch {
-        // ignore
-    }
-    try {
-        localStorage.removeItem(key);
-    } catch {
-        // ignore
-    }
+    try { sessionStorage.removeItem(key); } catch { /* ignore */ }
+    try { localStorage.removeItem(key); } catch { /* ignore */ }
 };
 
 export type OAuthMode = 'login' | 'signup';
@@ -131,7 +121,10 @@ export class OAuthLoginService {
             clearOAuthValue(STATE_TIMESTAMP_KEY);
             clearOAuthValue('derivfx_oauth_mode');
 
-            window.history.replaceState({}, document.title, REDIRECT_URI);
+            // Use a same-origin relative URL. This works whether Vercel currently
+            // serves the page as derivfx.site or www.derivfx.site and avoids the
+            // SecurityError caused by replaceState() across origins.
+            window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.hash || ''}`);
             return { accounts };
         } catch (error) {
             return { error: error instanceof Error ? error.message : 'Deriv authentication failed.' };
