@@ -1,5 +1,4 @@
-import { lazy, Suspense } from 'react';
-import React from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } from 'react-router-dom';
 import ChunkLoader from '@/components/loader/chunk-loader';
 import LocalStorageSyncWrapper from '@/components/localStorage-sync-wrapper';
@@ -16,14 +15,8 @@ import './app-root.scss';
 const Layout = lazy(() => import('../components/layout'));
 const AppRoot = lazy(() => import('./app-root'));
 
-// Translations CDN is optional — requires TRANSLATIONS_CDN_URL, R2_PROJECT_NAME, and CROWDIN_BRANCH_NAME env vars.
-// Without these, the app defaults to English. See user-guide/03-white-labeling.md#translations for setup instructions.
 const i18nInstance = initializeI18n({ cdnUrl: '' });
 
-/**
- * Component wrapper to handle language URL parameter
- * Uses the useLanguageFromURL hook to process language switching
- */
 const LanguageHandler = ({ children }: { children: React.ReactNode }) => {
     useLanguageFromURL();
     return <>{children}</>;
@@ -34,9 +27,7 @@ const router = createBrowserRouter(
         <Route
             path='/'
             element={
-                <Suspense
-                    fallback={<ChunkLoader message={localize('Please wait while we connect to the server...')} />}
-                >
+                <Suspense fallback={<ChunkLoader message={localize('Please wait while we connect to the server...')} />}>
                     <TranslationProvider defaultLang='EN' i18nInstance={i18nInstance}>
                         <LanguageHandler>
                             <StoreProvider>
@@ -52,53 +43,47 @@ const router = createBrowserRouter(
                 </Suspense>
             }
         >
-            {/* All child routes will be passed as children to Layout */}
             <Route index element={<AppRoot />} />
         </Route>
     )
 );
 
-/**
- * Main App component
- *
- * Responsibilities:
- * 1. OAuth callback handling (via useOAuthCallback hook)
- * 2. Account switching from URL (via useAccountSwitching hook)
- * 3. Router provider setup
- *
- * All complex logic has been extracted into custom hooks for better maintainability
- */
 function App() {
-    // Handle OAuth callback flow (CSRF validation + code extraction)
     const { isProcessing, isValid, params, error, cleanupURL } = useOAuthCallback();
-
-    // Handle account switching via URL parameter
     useAccountSwitching();
 
-    // Process the authorization code when OAuth callback is valid
-    React.useEffect(() => {
-        if (!isProcessing && isValid && params.code) {
-            // Exchange authorization code for access token
-            OAuthTokenExchangeService.exchangeCodeForToken(params.code)
-                .then(response => {
-                    if (response.access_token) {
-                        cleanupURL();
-                    } else if (response.error) {
-                        console.error('❌ Token exchange failed:', response.error);
-                        console.error('Error description:', response.error_description);
-                        // Clean up URL even on error
-                        cleanupURL();
-                    }
-                })
-                .catch(error => {
-                    console.error('❌ Token exchange request failed:', error);
-                    // Clean up URL even on error
-                    cleanupURL();
-                });
-        } else if (!isProcessing && error) {
-            console.error('OAuth callback error:', error);
-        }
-    }, [isProcessing, isValid, params.code, error, cleanupURL]);
+    useEffect(() => {
+        if (isProcessing || !isValid || !params.code) return;
+
+        let cancelled = false;
+
+        const finishOAuth = async () => {
+            try {
+                const response = await OAuthTokenExchangeService.exchangeCodeForToken(params.code!);
+                if (cancelled) return;
+
+                if (!response.access_token) {
+                    console.error('❌ Deriv OAuth token exchange failed:', response.error_description || response.error);
+                    return;
+                }
+
+                // Keep the callback URL clean only after the token has been stored.
+                cleanupURL();
+                window.dispatchEvent(new Event('derivfx-authenticated'));
+            } catch (oauthError) {
+                if (!cancelled) console.error('❌ Deriv OAuth callback failed:', oauthError);
+            }
+        };
+
+        void finishOAuth();
+        return () => {
+            cancelled = true;
+        };
+    }, [isProcessing, isValid, params.code, cleanupURL]);
+
+    useEffect(() => {
+        if (error) console.error('Deriv OAuth callback error:', error);
+    }, [error]);
 
     return <RouterProvider router={router} />;
 }
