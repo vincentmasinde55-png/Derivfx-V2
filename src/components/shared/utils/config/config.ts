@@ -52,21 +52,33 @@ const generateCodeChallenge = async (verifier: string): Promise<string> => {
     return btoa(String.fromCharCode(...new Uint8Array(hashBuffer))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 };
 
-// IMPORTANT: these keys are shared by the login generator, callback validator,
-// and token exchange. A previous version used different PKCE key names.
-const VERIFIER_KEY = 'oauth_code_verifier';
-const VERIFIER_TIMESTAMP_KEY = 'oauth_code_verifier_timestamp';
-const STATE_KEY = 'oauth_csrf_token';
-const STATE_TIMESTAMP_KEY = 'oauth_csrf_token_timestamp';
+// OAuth state and PKCE data use a host-shared cookie so a www <-> apex
+// redirect cannot lose the verifier/state through origin-isolated storage.
+const VERIFIER_KEY = 'derivfx_oauth_code_verifier';
+const VERIFIER_TIMESTAMP_KEY = 'derivfx_oauth_code_verifier_timestamp';
+const STATE_KEY = 'derivfx_oauth_csrf_token';
+const STATE_TIMESTAMP_KEY = 'derivfx_oauth_csrf_token_timestamp';
 const REDIRECT_URI = 'https://derivfx.site';
+const COOKIE_DOMAIN = '.derivfx.site';
+
+const setOAuthCookie = (key: string, value: string, maxAge = 600) => {
+    document.cookie = `${key}=${encodeURIComponent(value)}; Max-Age=${maxAge}; Path=/; Domain=${COOKIE_DOMAIN}; Secure; SameSite=Lax`;
+};
+const getOAuthCookie = (key: string): string | null => {
+    const item = document.cookie.split('; ').find(cookie => cookie.startsWith(`${key}=`));
+    return item ? decodeURIComponent(item.substring(key.length + 1)) : null;
+};
+const clearOAuthCookie = (key: string) => {
+    document.cookie = `${key}=; Max-Age=0; Path=/; Domain=${COOKIE_DOMAIN}; Secure; SameSite=Lax`;
+};
 
 const storeCodeVerifier = (verifier: string) => {
-    sessionStorage.setItem(VERIFIER_KEY, verifier);
-    sessionStorage.setItem(VERIFIER_TIMESTAMP_KEY, Date.now().toString());
+    setOAuthCookie(VERIFIER_KEY, verifier);
+    setOAuthCookie(VERIFIER_TIMESTAMP_KEY, Date.now().toString());
 };
 export const getCodeVerifier = (): string | null => {
-    const verifier = sessionStorage.getItem(VERIFIER_KEY);
-    const timestamp = sessionStorage.getItem(VERIFIER_TIMESTAMP_KEY);
+    const verifier = getOAuthCookie(VERIFIER_KEY);
+    const timestamp = getOAuthCookie(VERIFIER_TIMESTAMP_KEY);
     if (!verifier || !timestamp) return null;
     if (Date.now() - parseInt(timestamp, 10) > 600000) {
         clearCodeVerifier();
@@ -75,17 +87,17 @@ export const getCodeVerifier = (): string | null => {
     return verifier;
 };
 export const clearCodeVerifier = () => {
-    sessionStorage.removeItem(VERIFIER_KEY);
-    sessionStorage.removeItem(VERIFIER_TIMESTAMP_KEY);
+    clearOAuthCookie(VERIFIER_KEY);
+    clearOAuthCookie(VERIFIER_TIMESTAMP_KEY);
 };
 
 const storeCSRFToken = (token: string) => {
-    sessionStorage.setItem(STATE_KEY, token);
-    sessionStorage.setItem(STATE_TIMESTAMP_KEY, Date.now().toString());
+    setOAuthCookie(STATE_KEY, token);
+    setOAuthCookie(STATE_TIMESTAMP_KEY, Date.now().toString());
 };
 export const validateCSRFToken = (token: string): boolean => {
-    const stored = sessionStorage.getItem(STATE_KEY);
-    const timestamp = sessionStorage.getItem(STATE_TIMESTAMP_KEY);
+    const stored = getOAuthCookie(STATE_KEY);
+    const timestamp = getOAuthCookie(STATE_TIMESTAMP_KEY);
     if (!stored || !timestamp || stored !== token) return false;
     if (Date.now() - parseInt(timestamp, 10) > 600000) {
         clearCSRFToken();
@@ -94,12 +106,19 @@ export const validateCSRFToken = (token: string): boolean => {
     return true;
 };
 export const clearCSRFToken = () => {
-    sessionStorage.removeItem(STATE_KEY);
-    sessionStorage.removeItem(STATE_TIMESTAMP_KEY);
+    clearOAuthCookie(STATE_KEY);
+    clearOAuthCookie(STATE_TIMESTAMP_KEY);
 };
 
 /** Single OAuth2 + PKCE URL generator. */
 export const generateOAuthURL = async (prompt?: string) => {
+    // Canonicalize www before generating state/PKCE so the configured redirect
+    // URI and the browser origin always agree.
+    if (!isLocal() && window.location.hostname.toLowerCase() === 'www.derivfx.site') {
+        window.location.replace(`https://derivfx.site${window.location.pathname}${window.location.search}${window.location.hash}`);
+        return '';
+    }
+
     const hostname = isLocal() ? brandConfig.platform.auth2_url.staging : brandConfig.platform.auth2_url.production;
     const clientId = process.env.APP_ID || process.env.CLIENT_ID || process.env.NEXT_PUBLIC_APP_ID;
     if (!clientId) throw new Error('OAuth client ID is missing. Set APP_ID in Vercel.');
