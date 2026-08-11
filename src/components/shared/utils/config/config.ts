@@ -2,10 +2,6 @@ import { DerivWSAccountsService } from '@/services/derivws-accounts.service';
 import { OAuthTokenExchangeService } from '@/services/oauth-token-exchange.service';
 import brandConfig from '../../../../../brand.config.json';
 
-// =============================================================================
-// Constants - Domain & Server Configuration (from brand.config.json)
-// =============================================================================
-
 export const PRODUCTION_DOMAINS = {
     COM: brandConfig.platform.hostname.production.com,
 } as const;
@@ -25,28 +21,18 @@ export const WS_SERVERS = {
 } as const;
 
 export const isProduction = () => {
-    const hostname = window.location.hostname;
-    const productionDomains = Object.values(PRODUCTION_DOMAINS) as string[];
-    return productionDomains.includes(hostname);
+    const hostname = window.location.hostname.toLowerCase();
+    return hostname === 'derivfx.site' || hostname === 'www.derivfx.site';
 };
 
 export const isLocal = () => /localhost(:\d+)?$/i.test(window.location.hostname);
 
-const getDefaultServerURL = () => {
-    const isProductionEnv = isProduction();
-    try {
-        return isProductionEnv ? WS_SERVERS.PRODUCTION : WS_SERVERS.STAGING;
-    } catch (error) {
-        console.error('Error in getDefaultServerURL:', error);
-    }
-    return isProductionEnv ? WS_SERVERS.PRODUCTION : WS_SERVERS.STAGING;
-};
+const getDefaultServerURL = () => (isProduction() ? WS_SERVERS.PRODUCTION : WS_SERVERS.STAGING);
 
 export const getSocketURL = async (): Promise<string> => {
     try {
         const authInfo = OAuthTokenExchangeService.getAuthInfo();
-        if (!authInfo || !authInfo.access_token) return getDefaultServerURL();
-
+        if (!authInfo?.access_token) return getDefaultServerURL();
         return await DerivWSAccountsService.getAuthenticatedWebSocketURL(authInfo.access_token);
     } catch (error) {
         console.error('[DerivWS] Error in getSocketURL:', error);
@@ -55,32 +41,29 @@ export const getSocketURL = async (): Promise<string> => {
 };
 
 export const getDebugServiceWorker = () => {
-    const debug_service_worker_flag = window.localStorage.getItem('debug_service_worker');
-    if (debug_service_worker_flag) return !!parseInt(debug_service_worker_flag);
-    return false;
+    const value = window.localStorage.getItem('debug_service_worker');
+    return value ? !!parseInt(value, 10) : false;
 };
 
 const generateCSRFToken = (): string => {
     const array = new Uint8Array(32);
     crypto.getRandomValues(array);
-    const base64 = btoa(String.fromCharCode(...array));
-    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    return btoa(String.fromCharCode(...array)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 };
 
 const generateCodeVerifier = (): string => {
-    const array = new Uint8Array(32);
+    const array = new Uint8Array(64);
     crypto.getRandomValues(array);
-    const base64 = btoa(String.fromCharCode(...array));
-    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+    return Array.from(array, value => alphabet[value % alphabet.length]).join('');
 };
 
 const generateCodeChallenge = async (verifier: string): Promise<string> => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(verifier);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const base64 = btoa(String.fromCharCode(...hashArray));
-    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+    return btoa(String.fromCharCode(...new Uint8Array(hashBuffer)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
 };
 
 const storeCodeVerifier = (verifier: string): void => {
@@ -93,8 +76,7 @@ export const getCodeVerifier = (): string | null => {
     const timestamp = sessionStorage.getItem('oauth_code_verifier_timestamp');
     if (!verifier || !timestamp) return null;
 
-    const verifierAge = Date.now() - parseInt(timestamp, 10);
-    if (verifierAge > 600000) {
+    if (Date.now() - parseInt(timestamp, 10) > 600000) {
         clearCodeVerifier();
         return null;
     }
@@ -112,12 +94,11 @@ const storeCSRFToken = (token: string): void => {
 };
 
 export const validateCSRFToken = (token: string): boolean => {
-    const storedToken = sessionStorage.getItem('oauth_csrf_token');
+    const stored = sessionStorage.getItem('oauth_csrf_token');
     const timestamp = sessionStorage.getItem('oauth_csrf_token_timestamp');
-    if (!storedToken || !timestamp || storedToken !== token) return false;
+    if (!stored || !timestamp || stored !== token) return false;
 
-    const tokenAge = Date.now() - parseInt(timestamp, 10);
-    if (tokenAge > 600000) {
+    if (Date.now() - parseInt(timestamp, 10) > 600000) {
         clearCSRFToken();
         return false;
     }
@@ -130,43 +111,34 @@ export const clearCSRFToken = (): void => {
 };
 
 /**
- * Generate the single OAuth2 + PKCE authorization URL used by DerivFX.
- *
- * The public OAuth client ID is exposed to the browser at build time as APP_ID.
- * APP_ID is intentionally used here because Vercel currently provides APP_ID,
- * while CLIENT_ID is optional for backwards compatibility.
+ * Single production OAuth2 + PKCE URL generator.
+ * Public domains always use production OAuth. Only localhost uses staging.
  */
 export const generateOAuthURL = async (prompt?: string) => {
-    try {
-        const environment = isProduction() ? 'production' : 'staging';
-        const hostname = brandConfig?.platform.auth2_url?.[environment];
-        const clientId = process.env.APP_ID || process.env.CLIENT_ID || process.env.NEXT_PUBLIC_APP_ID;
+    const hostname = isLocal()
+        ? brandConfig.platform.auth2_url.staging
+        : brandConfig.platform.auth2_url.production;
+    const clientId = process.env.APP_ID || process.env.CLIENT_ID || process.env.NEXT_PUBLIC_APP_ID;
 
-        if (!hostname) throw new Error('OAuth authentication endpoint is missing.');
-        if (!clientId) throw new Error('OAuth client ID is missing. Set APP_ID in Vercel.');
+    if (!clientId) throw new Error('OAuth client ID is missing. Set APP_ID in Vercel.');
 
-        const csrfToken = generateCSRFToken();
-        const codeVerifier = generateCodeVerifier();
-        const codeChallenge = await generateCodeChallenge(codeVerifier);
+    const state = generateCSRFToken();
+    const verifier = generateCodeVerifier();
+    const challenge = await generateCodeChallenge(verifier);
 
-        // Store the exact values used by useOAuthCallback + OAuthTokenExchangeService.
-        storeCSRFToken(csrfToken);
-        storeCodeVerifier(codeVerifier);
+    storeCSRFToken(state);
+    storeCodeVerifier(verifier);
 
-        const redirectUrl = window.location.origin;
-        const url = new URL(`${hostname}auth`);
-        url.searchParams.set('response_type', 'code');
-        url.searchParams.set('client_id', String(clientId));
-        url.searchParams.set('redirect_uri', redirectUrl);
-        url.searchParams.set('scope', 'trade');
-        url.searchParams.set('state', csrfToken);
-        url.searchParams.set('code_challenge', codeChallenge);
-        url.searchParams.set('code_challenge_method', 'S256');
-        if (prompt) url.searchParams.set('prompt', prompt);
+    const redirectUri = window.location.origin;
+    const url = new URL(`${hostname}auth`);
+    url.searchParams.set('response_type', 'code');
+    url.searchParams.set('client_id', String(clientId));
+    url.searchParams.set('redirect_uri', redirectUri);
+    url.searchParams.set('scope', 'trade');
+    url.searchParams.set('state', state);
+    url.searchParams.set('code_challenge', challenge);
+    url.searchParams.set('code_challenge_method', 'S256');
+    if (prompt) url.searchParams.set('prompt', prompt);
 
-        return url.toString();
-    } catch (error) {
-        console.error('[OAuth] Error generating OAuth URL:', error);
-        throw error;
-    }
+    return url.toString();
 };
