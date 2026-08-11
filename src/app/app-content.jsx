@@ -45,7 +45,6 @@ const AppContent = observer(() => {
         import('@/utils/gtm').then(({ default: GTM }) => GTM.init(store));
     }, [app, common, store]);
 
-    // OAuth callback is processed only when Deriv redirects back to DerivFX.
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         if (!params.has('code') && !params.has('error')) return undefined;
@@ -73,8 +72,6 @@ const AppContent = observer(() => {
         return () => { cancelled = true; };
     }, [initStores]);
 
-    // Attach OAuth actions to the existing visible Log in / Sign up buttons.
-    // No public-page API call is made until one of these buttons is pressed.
     useEffect(() => {
         const attach = () => {
             const elements = Array.from(document.querySelectorAll('button, a'));
@@ -122,8 +119,8 @@ const AppContent = observer(() => {
                 <BotStopped />
                 <TransactionDetailsModal />
                 <ToastContainer limit={3} draggable={false} />
-                {auth_loading && <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ background: '#fff', borderRadius: 14, padding: 24, textAlign: 'center', maxWidth: 320 }}><strong>Connecting to Deriv…</strong><p>Signing you in and loading your trading accounts.</p></div></div>}
-                {auth_error && <div role='alert' style={{ position: 'fixed', left: 16, right: 16, bottom: 80, zIndex: 100000, background: '#fff', borderRadius: 12, padding: 16, boxShadow: '0 8px 30px rgba(0,0,0,.2)' }}><strong>Deriv connection failed</strong><div style={{ marginTop: 6 }}>{auth_error}</div><button type='button' onClick={() => setAuthError('')} style={{ marginTop: 10 }}>Close</button></div>}
+                {auth_loading && <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(2,8,23,.86)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ background: '#0b1224', color: '#fff', border: '1px solid rgba(22,200,255,.25)', borderRadius: 18, padding: 28, textAlign: 'center', maxWidth: 340, boxShadow: '0 20px 60px rgba(0,0,0,.45)' }}><img src='/deriv-logo.svg' alt='DerivFX' style={{ width: 220, maxWidth: '80%', height: 'auto', marginBottom: 16 }} /><strong>Connecting to Deriv…</strong><p style={{ opacity: .75 }}>Signing you in and loading your trading accounts.</p></div></div>}
+                {auth_error && <div role='alert' style={{ position: 'fixed', left: 16, right: 16, bottom: 80, zIndex: 100000, background: '#0b1224', color: '#fff', border: '1px solid rgba(255,68,79,.45)', borderRadius: 12, padding: 16, boxShadow: '0 8px 30px rgba(0,0,0,.35)' }}><strong>DerivFX connection failed</strong><div style={{ marginTop: 6, opacity: .82 }}>{auth_error}</div><button type='button' onClick={() => setAuthError('')} style={{ marginTop: 10 }}>Close</button></div>}
             </div>
         </ThemeProvider>
     );
