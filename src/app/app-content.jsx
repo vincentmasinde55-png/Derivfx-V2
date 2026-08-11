@@ -7,7 +7,6 @@ import ChunkLoader from '@/components/loader/chunk-loader';
 import { getUrlBase } from '@/components/shared';
 import TransactionDetailsModal from '@/components/transaction-details';
 import { api_base, ApiHelpers, ServerTime } from '@/external/bot-skeleton';
-import { CONNECTION_STATUS } from '@/external/bot-skeleton/services/api/observables/connection-status-stream';
 import { useApiBase } from '@/hooks/useApiBase';
 import useDevMode from '@/hooks/useDevMode';
 import { useStore } from '@/hooks/useStore';
@@ -24,8 +23,9 @@ import './app.scss';
 import 'react-toastify/dist/ReactToastify.css';
 import '../components/bot-notification/bot-notification.scss';
 
+const sleep = ms => new Promise(resolve => window.setTimeout(resolve, ms));
+
 const AppContent = observer(() => {
-    const [is_api_initialized, setIsApiInitialized] = React.useState(false);
     const [is_loading, setIsLoading] = React.useState(true);
     const [initialization_error, setInitializationError] = React.useState('');
 
@@ -39,7 +39,7 @@ const AppContent = observer(() => {
 
     useDevMode();
 
-    const livechat_client_information = {
+    useLiveChat({
         is_client_store_initialized: client?.is_logged_in ? true : !!client,
         is_logged_in: client?.is_logged_in,
         loginid: client?.loginid,
@@ -48,17 +48,10 @@ const AppContent = observer(() => {
         email: '',
         first_name: '',
         last_name: '',
-    };
-
-    useLiveChat(livechat_client_information);
+    });
 
     useEffect(() => {
-        if (connectionStatus === CONNECTION_STATUS.OPENED) {
-            setIsApiInitialized(true);
-            common.setSocketOpened(true);
-        } else {
-            common.setSocketOpened(false);
-        }
+        common.setSocketOpened(connectionStatus === 'opened');
     }, [common, connectionStatus]);
 
     const { current_language } = common;
@@ -82,7 +75,7 @@ const AppContent = observer(() => {
     }, []);
 
     React.useEffect(() => {
-        if (!is_subscribed_to_msg_listener.current && client.is_logged_in && is_api_initialized && api_base?.api) {
+        if (!is_subscribed_to_msg_listener.current && client.is_logged_in && api_base?.api) {
             is_subscribed_to_msg_listener.current = true;
             msg_listener.current = api_base.api.onMessage()?.subscribe(handleMessage);
         }
@@ -90,78 +83,90 @@ const AppContent = observer(() => {
             if (is_subscribed_to_msg_listener.current && msg_listener.current) {
                 is_subscribed_to_msg_listener.current = false;
                 msg_listener.current.unsubscribe?.();
+                msg_listener.current = null;
             }
         };
-    }, [is_api_initialized, client.is_logged_in, client.loginid, handleMessage, connectionStatus]);
+    }, [client.is_logged_in, client.loginid, handleMessage, connectionStatus]);
 
-    const init = () => {
+    const init = React.useCallback(() => {
         ServerTime.init(common);
         app.setDBotEngineStores();
         ApiHelpers.setInstance(app.api_helpers_store);
         import('@/utils/gtm').then(({ default: GTM }) => GTM.init(store));
-    };
+    }, [app, common, store]);
 
-    /**
-     * New API initialization path.
-     *
-     * Do NOT call the legacy ActiveSymbols.retrieveActiveSymbols() here. That
-     * method starts by waiting for legacy trading_times and was the source of
-     * the indefinite loading state. The new public Options WebSocket is the
-     * source of truth for initial market metadata.
-     */
-    const initializeNewDerivAPI = React.useCallback(async () => {
+    const initializeDashboard = React.useCallback(async () => {
         init();
         setInitializationError('');
         setIsLoading(true);
 
-        try {
-            if (!api_base?.api) {
-                throw new Error('Deriv WebSocket is not ready.');
+        let lastError = null;
+
+        // The dashboard must not wait for the legacy DerivAPIBasic socket.
+        // The new public Options API is used directly for initial market data.
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+            try {
+                if (!api_base.api) {
+                    await api_base.init();
+                }
+
+                if (!api_base.api) throw new Error('Deriv API client could not be created.');
+
+                const symbols = await Promise.race([
+                    api_base.getActiveSymbols(),
+                    new Promise((_, reject) =>
+                        window.setTimeout(
+                            () => reject(new Error('New Deriv API timed out while loading active markets.')),
+                            12000
+                        )
+                    ),
+                ]);
+
+                if (!Array.isArray(symbols) || symbols.length === 0) {
+                    throw new Error('New Deriv API returned no active markets.');
+                }
+
+                // Adapt the new API response to the existing bot UI without
+                // running the old startup promise/trading-times chain.
+                const activeSymbols = ApiHelpers.instance?.active_symbols;
+                if (!activeSymbols) throw new Error('DerivFX symbol helper is unavailable.');
+
+                activeSymbols.active_symbols = symbols;
+                activeSymbols.is_initialised = true;
+                activeSymbols.has_initialization_error = false;
+                activeSymbols.processed_symbols = activeSymbols.processActiveSymbols();
+                activeSymbols.init_promise?.resolve?.();
+
+                api_base.has_active_symbols = true;
+                api_base.active_symbols = symbols;
+                api_base.active_symbols_promise = Promise.resolve(symbols);
+
+                setIsLoading(false);
+                return;
+            } catch (error) {
+                lastError = error;
+                console.error(`[DerivFX] New API startup attempt ${attempt + 1} failed:`, error);
+                if (attempt < 2) await sleep(1000);
             }
-
-            const symbols = await Promise.race([
-                api_base.getActiveSymbols(),
-                new Promise((_, reject) =>
-                    window.setTimeout(
-                        () => reject(new Error('New Deriv API timed out while loading active markets.')),
-                        15000
-                    )
-                ),
-            ]);
-
-            if (!Array.isArray(symbols) || symbols.length === 0) {
-                throw new Error('New Deriv API returned no active markets.');
-            }
-
-            // Seed the existing bot helper with the new API response so the
-            // existing dropdowns/categorization can continue working.
-            const activeSymbols = ApiHelpers.instance?.active_symbols;
-            if (!activeSymbols) throw new Error('DerivFX symbol helper is unavailable.');
-
-            activeSymbols.active_symbols = symbols;
-            activeSymbols.is_initialised = true;
-            activeSymbols.has_initialization_error = false;
-            activeSymbols.processed_symbols = activeSymbols.processActiveSymbols();
-            activeSymbols.init_promise?.resolve?.();
-
-            api_base.has_active_symbols = true;
-            api_base.active_symbols = symbols;
-            api_base.active_symbols_promise = Promise.resolve(symbols);
-
-            setInitializationError('');
-            setIsLoading(false);
-        } catch (error) {
-            console.error('[DerivFX] New API initialization failed:', error);
-            setInitializationError(error instanceof Error ? error.message : 'Unable to load Deriv trading data.');
-            setIsLoading(false);
         }
-    }, [common, app, store]);
+
+        setInitializationError(lastError instanceof Error ? lastError.message : 'Unable to load the new Deriv API.');
+        setIsLoading(false);
+    }, [init]);
 
     React.useEffect(() => {
-        if (is_api_initialized) {
-            initializeNewDerivAPI();
-        }
-    }, [is_api_initialized, initializeNewDerivAPI]);
+        let cancelled = false;
+        const start = async () => {
+            // AppRoot initializes the API in parallel. Do not require its
+            // connection-status observable to become OPEN before proceeding.
+            await sleep(500);
+            if (!cancelled) initializeDashboard();
+        };
+        start();
+        return () => {
+            cancelled = true;
+        };
+    }, [initializeDashboard]);
 
     if (common?.error) return null;
 
