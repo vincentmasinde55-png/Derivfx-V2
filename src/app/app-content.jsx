@@ -56,7 +56,7 @@ const AppContent = observer(() => {
         if (connectionStatus === CONNECTION_STATUS.OPENED) {
             setIsApiInitialized(true);
             common.setSocketOpened(true);
-        } else if (connectionStatus !== CONNECTION_STATUS.OPENED) {
+        } else {
             common.setSocketOpened(false);
         }
     }, [common, connectionStatus]);
@@ -101,67 +101,67 @@ const AppContent = observer(() => {
         import('@/utils/gtm').then(({ default: GTM }) => GTM.init(store));
     };
 
-    const changeActiveSymbolLoadingState = () => {
+    /**
+     * New API initialization path.
+     *
+     * Do NOT call the legacy ActiveSymbols.retrieveActiveSymbols() here. That
+     * method starts by waiting for legacy trading_times and was the source of
+     * the indefinite loading state. The new public Options WebSocket is the
+     * source of truth for initial market metadata.
+     */
+    const initializeNewDerivAPI = React.useCallback(async () => {
         init();
         setInitializationError('');
+        setIsLoading(true);
 
-        const retrieveActiveSymbols = async () => {
-            try {
-                const { active_symbols } = ApiHelpers.instance;
-                if (!active_symbols) throw new Error('Deriv API helpers were not initialized.');
-
-                // Never allow symbol initialization to block the entire app forever.
-                await Promise.race([
-                    active_symbols.retrieveActiveSymbols(true),
-                    new Promise((_, reject) =>
-                        window.setTimeout(
-                            () => reject(new Error('Deriv active-symbols request timed out after 15 seconds.')),
-                            15000
-                        )
-                    ),
-                ]);
-
-                setInitializationError('');
-                setIsLoading(false);
-            } catch (error) {
-                console.error('[DerivFX] Initialization failed:', error);
-                setInitializationError(error instanceof Error ? error.message : 'Unable to load Deriv trading data.');
-                setIsLoading(false);
+        try {
+            if (!api_base?.api) {
+                throw new Error('Deriv WebSocket is not ready.');
             }
-        };
 
-        if (ApiHelpers?.instance?.active_symbols) {
-            retrieveActiveSymbols();
-            return;
+            const symbols = await Promise.race([
+                api_base.getActiveSymbols(),
+                new Promise((_, reject) =>
+                    window.setTimeout(
+                        () => reject(new Error('New Deriv API timed out while loading active markets.')),
+                        15000
+                    )
+                ),
+            ]);
+
+            if (!Array.isArray(symbols) || symbols.length === 0) {
+                throw new Error('New Deriv API returned no active markets.');
+            }
+
+            // Seed the existing bot helper with the new API response so the
+            // existing dropdowns/categorization can continue working.
+            const activeSymbols = ApiHelpers.instance?.active_symbols;
+            if (!activeSymbols) throw new Error('DerivFX symbol helper is unavailable.');
+
+            activeSymbols.active_symbols = symbols;
+            activeSymbols.is_initialised = true;
+            activeSymbols.has_initialization_error = false;
+            activeSymbols.processed_symbols = activeSymbols.processActiveSymbols();
+            activeSymbols.init_promise?.resolve?.();
+
+            api_base.has_active_symbols = true;
+            api_base.active_symbols = symbols;
+            api_base.active_symbols_promise = Promise.resolve(symbols);
+
+            setInitializationError('');
+            setIsLoading(false);
+        } catch (error) {
+            console.error('[DerivFX] New API initialization failed:', error);
+            setInitializationError(error instanceof Error ? error.message : 'Unable to load Deriv trading data.');
+            setIsLoading(false);
         }
-
-        let elapsed = 0;
-        const intervalId = setInterval(() => {
-            elapsed += 250;
-            if (ApiHelpers?.instance?.active_symbols) {
-                clearInterval(intervalId);
-                retrieveActiveSymbols();
-            } else if (elapsed >= 10000) {
-                clearInterval(intervalId);
-                setInitializationError('Deriv API initialization timed out. Please retry.');
-                setIsLoading(false);
-            }
-        }, 250);
-    };
+    }, [common, app, store]);
 
     React.useEffect(() => {
         if (is_api_initialized) {
-            init();
-            setIsLoading(true);
-            if (!client.is_logged_in) changeActiveSymbolLoadingState();
+            initializeNewDerivAPI();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [is_api_initialized]);
-
-    React.useEffect(() => {
-        if (client.is_logged_in && is_api_initialized) changeActiveSymbolLoadingState();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [is_api_initialized, client.loginid]);
+    }, [is_api_initialized, initializeNewDerivAPI]);
 
     if (common?.error) return null;
 
