@@ -23,25 +23,16 @@ export type OAuthMode = 'login' | 'signup';
 
 export class OAuthLoginService {
     private static clientId() {
-        // CLIENT_ID is the new OAuth application's client ID.
-        // APP_ID is accepted as a fallback because the deployment may use
-        // the new Deriv application ID under that environment-variable name.
         const id = process.env.CLIENT_ID || process.env.APP_ID || process.env.NEXT_PUBLIC_APP_ID;
         if (!id) throw new Error('Deriv OAuth client ID is missing from the Vercel environment.');
         return String(id);
     }
 
     private static legacyAppId() {
-        // Optional: only include this when the same project also maintains a
-        // Legacy Deriv API application.
         const legacy = process.env.LEGACY_APP_ID;
         return legacy ? String(legacy) : '';
     }
 
-    /**
-     * Deriv requires an exact redirect URI match. Do not append a trailing
-     * slash or the current pathname unless that exact URL was registered.
-     */
     private static redirectUri() {
         return window.location.origin;
     }
@@ -59,7 +50,9 @@ export class OAuthLoginService {
         url.searchParams.set('response_type', 'code');
         url.searchParams.set('client_id', this.clientId());
         url.searchParams.set('redirect_uri', this.redirectUri());
-        url.searchParams.set('scope', 'trade account_manage');
+        // The Deriv application shown in the dashboard has Trade enabled.
+        // Request only the permission required to read accounts/trade.
+        url.searchParams.set('scope', 'trade');
         url.searchParams.set('state', state);
         url.searchParams.set('code_challenge', challenge);
         url.searchParams.set('code_challenge_method', 'S256');
