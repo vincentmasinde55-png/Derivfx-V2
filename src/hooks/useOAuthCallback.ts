@@ -24,30 +24,13 @@ export interface OAuthCallbackResult {
 }
 
 /**
- * Custom hook to handle OAuth callback flow
+ * Custom hook to handle OAuth callback flow.
  *
- * This hook:
- * 1. Extracts OAuth parameters (code, state, error) from URL
- * 2. Validates CSRF token (state parameter)
- * 3. Returns the authorization code and a cleanup function
- *
- * Note: Call cleanupURL() after you've processed the authorization code
- *
- * @returns OAuth callback processing result with cleanupURL function
- *
- * @example
- * ```tsx
- * const { isProcessing, isValid, params, error, cleanupURL } = useOAuthCallback();
- *
- * useEffect(() => {
- *   if (!isProcessing && isValid && params.code) {
- *     // Exchange code for tokens
- *     exchangeCodeForTokens(params.code).then(() => {
- *       cleanupURL(); // Clean up after processing
- *     });
- *   }
- * }, [isProcessing, isValid, params.code]);
- * ```
+ * The cleanup URL deliberately uses a same-origin relative URL. Deriv may
+ * return the OAuth callback on the www host while the original redirect was
+ * configured for the apex host (or vice versa). Passing an absolute URL from
+ * the other host to history.replaceState throws a SecurityError and makes a
+ * successful login look like an account-connection failure.
  */
 export const useOAuthCallback = (): OAuthCallbackResult => {
     const [result, setResult] = useState<Omit<OAuthCallbackResult, 'cleanupURL'>>({
@@ -62,7 +45,6 @@ export const useOAuthCallback = (): OAuthCallbackResult => {
         error: null,
     });
 
-    // Cleanup function that can be called by the consuming component
     const cleanupURL = useCallback(() => {
         const url = new URL(window.location.href);
         url.searchParams.delete('code');
@@ -70,23 +52,24 @@ export const useOAuthCallback = (): OAuthCallbackResult => {
         url.searchParams.delete('scope');
         url.searchParams.delete('error');
         url.searchParams.delete('error_description');
-        window.history.replaceState({}, '', url.toString());
+
+        // Keep replaceState strictly same-origin. Do not pass url.toString(),
+        // because the OAuth provider can return us on www.derivfx.site while
+        // the configured redirect is derivfx.site (or the reverse).
+        const cleanPath = `${url.pathname}${url.search}${url.hash}`;
+        window.history.replaceState({}, '', cleanPath || '/');
     }, []);
 
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
 
-        // Extract OAuth parameters
         const code = urlParams.get('code');
         const state = urlParams.get('state');
         const error = urlParams.get('error');
         const error_description = urlParams.get('error_description');
-
-        // Check if this is an OAuth callback (has code or error parameter)
         const isOAuthCallback = code !== null || error !== null || state !== null;
 
         if (!isOAuthCallback) {
-            // Not an OAuth callback, mark as complete
             setResult({
                 isProcessing: false,
                 isValid: false,
@@ -96,7 +79,6 @@ export const useOAuthCallback = (): OAuthCallbackResult => {
             return;
         }
 
-        // Handle OAuth error response
         if (error) {
             console.error('OAuth error:', error, error_description);
             setResult({
@@ -105,12 +87,10 @@ export const useOAuthCallback = (): OAuthCallbackResult => {
                 params: { code, state, error, error_description },
                 error: error_description || error,
             });
-
             cleanupURL();
             return;
         }
 
-        // Validate CSRF token (state parameter)
         if (!state) {
             console.error('[DEBUG] Missing state parameter in OAuth callback');
             clearAuthData();
@@ -120,7 +100,6 @@ export const useOAuthCallback = (): OAuthCallbackResult => {
                 params: { code, state, error, error_description },
                 error: 'Missing state parameter - potential security threat',
             });
-
             window.location.replace(window.location.origin);
             return;
         }
@@ -137,10 +116,8 @@ export const useOAuthCallback = (): OAuthCallbackResult => {
             return;
         }
 
-        // CSRF validation passed
         clearCSRFToken();
 
-        // Validate that we have the authorization code
         if (!code) {
             console.error('Missing authorization code in OAuth callback');
             setResult({
@@ -149,7 +126,6 @@ export const useOAuthCallback = (): OAuthCallbackResult => {
                 params: { code, state, error, error_description },
                 error: 'Missing authorization code',
             });
-
             cleanupURL();
             return;
         }
@@ -160,7 +136,7 @@ export const useOAuthCallback = (): OAuthCallbackResult => {
             params: { code, state, error, error_description },
             error: null,
         });
-    }, [cleanupURL]); // Run only once on mount
+    }, [cleanupURL]);
 
     return {
         ...result,
