@@ -18,7 +18,10 @@ const SYMBOLS = [
     ['1HZ100V', 'Volatility 100 (1s)'],
 ] as const;
 
-const getAppId = () => String(process.env.APP_ID || process.env.CLIENT_ID || '340');
+const getTickAppId = () => {
+    const configured = String(process.env.DERIV_TICK_APP_ID || '');
+    return /^\d+$/.test(configured) ? configured : '1089';
+};
 
 const VolatilityTicks = () => {
     const [ticks, setTicks] = React.useState<Record<string, Tick>>(() =>
@@ -33,16 +36,12 @@ const VolatilityTicks = () => {
 
         const connect = () => {
             if (stopped) return;
-            socket = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${encodeURIComponent(getAppId())}`);
-
+            socket = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${getTickAppId()}`);
             socket.onopen = () => {
                 if (stopped || !socket) return;
                 setConnected(true);
-                SYMBOLS.forEach(([symbol]) =>
-                    socket?.send(JSON.stringify({ ticks: symbol, subscribe: 1 }))
-                );
+                SYMBOLS.forEach(([symbol]) => socket?.send(JSON.stringify({ ticks: symbol, subscribe: 1 })));
             };
-
             socket.onmessage = event => {
                 try {
                     const data = JSON.parse(event.data);
@@ -53,15 +52,13 @@ const VolatilityTicks = () => {
                         [symbol]: { symbol, quote: Number(quote), epoch },
                     }));
                 } catch {
-                    // Ignore malformed WebSocket frames.
+                    // Ignore malformed frames.
                 }
             };
-
             socket.onclose = () => {
                 setConnected(false);
                 if (!stopped) reconnectTimer = setTimeout(connect, 2500);
             };
-
             socket.onerror = () => setConnected(false);
         };
 
