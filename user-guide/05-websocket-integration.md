@@ -23,10 +23,10 @@ Complete documentation for the WebSocket connection system, including public and
 
 The application uses WebSocket connections to communicate with the Deriv API for real-time trading data and operations. The connection operates in two modes:
 
-| Mode              | Purpose                                | How URL Is Obtained                              |
-| ----------------- | -------------------------------------- | ------------------------------------------------ |
-| **Public**        | Market data, active symbols            | Static URL from `brand.config.json` derivws config |
-| **Authenticated** | Balance, trades, account operations    | Dynamic URL fetched from DerivWS OTP API endpoint  |
+| Mode              | Purpose                             | How URL Is Obtained                                |
+| ----------------- | ----------------------------------- | -------------------------------------------------- |
+| **Public**        | Market data, active symbols         | Static URL from `brand.config.json` derivws config |
+| **Authenticated** | Balance, trades, account operations | Dynamic URL fetched from DerivWS OTP API endpoint  |
 
 When a user logs in, the system fetches a dynamic authenticated WebSocket URL from the DerivWS API (with OTP) and creates a new connection, replacing the public one.
 
@@ -38,13 +38,13 @@ When a user logs in, the system fetches a dynamic authenticated WebSocket URL fr
 
 ### Key Files
 
-| File                                                 | Purpose                                 |
-| ---------------------------------------------------- | --------------------------------------- |
-| `src/external/bot-skeleton/services/api/appId.js`    | Async singleton WebSocket instance creation |
-| `src/external/bot-skeleton/services/api/api-base.ts` | Connection management and authorization |
-| `src/services/derivws-accounts.service.ts`           | Fetches authenticated WebSocket URL via OTP |
+| File                                                 | Purpose                                        |
+| ---------------------------------------------------- | ---------------------------------------------- |
+| `src/external/bot-skeleton/services/api/appId.js`    | Async singleton WebSocket instance creation    |
+| `src/external/bot-skeleton/services/api/api-base.ts` | Connection management and authorization        |
+| `src/services/derivws-accounts.service.ts`           | Fetches authenticated WebSocket URL via OTP    |
 | `src/components/shared/utils/config/config.ts`       | `getSocketURL()` — orchestrates URL resolution |
-| `src/stores/client-store.ts`                         | Account switching and WebSocket regeneration |
+| `src/stores/client-store.ts`                         | Account switching and WebSocket regeneration   |
 
 ### Connection URL Format
 
@@ -97,6 +97,7 @@ export const getSocketURL = async (): Promise<string> => {
 ```
 
 Key behavior:
+
 - If **not authenticated** → returns static public URL from `brand.config.json` (e.g., `https://staging-api.derivws.com/trading/v1/options/ws/public`)
 - If **authenticated** → calls `DerivWSAccountsService.getAuthenticatedWebSocketURL()` which fetches accounts, gets an OTP, and returns a dynamic URL with one-time password
 - If **anything fails** → falls back to the default public server URL
@@ -147,6 +148,7 @@ export const generateDerivApiInstance = async (forceNew = false) => {
 ```
 
 Key behavior:
+
 - **Async** — calls `await getSocketURL()` which may fetch from the OTP API
 - **Singleton** — reuses existing instance if the connection is open or connecting
 - **Race-safe** — if multiple callers request an instance concurrently, they share the same creation promise
@@ -277,11 +279,11 @@ async authorizeAndSubscribe() {
 
 The endpoint is determined by `getSocketURL()` based on authentication state:
 
-| Condition                             | URL Source                      | Example URL                                                        |
-| ------------------------------------- | ------------------------------- | ------------------------------------------------------------------ |
-| Not authenticated (no `auth_info`)    | Static from `brand.config.json` | `https://staging-api.derivws.com/trading/v1/options/ws/public`     |
-| Authenticated (valid `auth_info`)     | Dynamic from OTP API            | `wss://staging-api.derivws.com/trading/v1/options/ws/demo?otp=xxx` |
-| Auth flow fails (error/timeout)       | Fallback to static default      | `https://staging-api.derivws.com/trading/v1/options/ws/public`     |
+| Condition                          | URL Source                      | Example URL                                                        |
+| ---------------------------------- | ------------------------------- | ------------------------------------------------------------------ |
+| Not authenticated (no `auth_info`) | Static from `brand.config.json` | `https://staging-api.derivws.com/trading/v1/options/ws/public`     |
+| Authenticated (valid `auth_info`)  | Dynamic from OTP API            | `wss://staging-api.derivws.com/trading/v1/options/ws/demo?otp=xxx` |
+| Auth flow fails (error/timeout)    | Fallback to static default      | `https://staging-api.derivws.com/trading/v1/options/ws/public`     |
 
 ### Account Type Determination (for local state)
 
@@ -458,9 +460,9 @@ Step 7: Fully Authenticated
 ```typescript
 const socket_state = {
     [WebSocket.CONNECTING]: 'Connecting', // 0
-    [WebSocket.OPEN]:       'Connected',  // 1
-    [WebSocket.CLOSING]:    'Closing',    // 2
-    [WebSocket.CLOSED]:     'Closed',     // 3
+    [WebSocket.OPEN]: 'Connected', // 1
+    [WebSocket.CLOSING]: 'Closing', // 2
+    [WebSocket.CLOSED]: 'Closed', // 3
 };
 
 enum CONNECTION_STATUS {
@@ -471,13 +473,13 @@ enum CONNECTION_STATUS {
 
 ### Connection Regeneration Triggers
 
-| Trigger              | Action                                            |
-| -------------------- | ------------------------------------------------- |
-| Account switch       | New WebSocket with different `account_id`         |
-| Tab focus change     | Check if account changed, regenerate if needed    |
-| Connection lost      | Reconnect with current account                    |
-| OAuth login          | Switch from public to authenticated endpoint      |
-| Manual refresh       | Re-establish connection from localStorage state   |
+| Trigger          | Action                                          |
+| ---------------- | ----------------------------------------------- |
+| Account switch   | New WebSocket with different `account_id`       |
+| Tab focus change | Check if account changed, regenerate if needed  |
+| Connection lost  | Reconnect with current account                  |
+| OAuth login      | Switch from public to authenticated endpoint    |
+| Manual refresh   | Re-establish connection from localStorage state |
 
 ### Account Switch Flow
 
@@ -511,7 +513,8 @@ Maximum of **5 reconnection attempts** before resetting the session:
 
 ```typescript
 reconnectIfNotConnected = () => {
-    if (this.api?.connection?.readyState > 1) { // CLOSING or CLOSED
+    if (this.api?.connection?.readyState > 1) {
+        // CLOSING or CLOSED
         this.reconnection_attempts += 1;
 
         if (this.reconnection_attempts >= this.MAX_RECONNECTION_ATTEMPTS) {
@@ -546,13 +549,13 @@ window.addEventListener('focus', this.reconnectIfNotConnected);
 
 RxJS BehaviorSubjects provide reactive state for WebSocket events:
 
-| Stream               | Type                        | Description                    | Setter                   |
-| -------------------- | --------------------------- | ------------------------------ | ------------------------ |
-| `connectionStatus$`  | `BehaviorSubject<string>`   | Connection state               | `setConnectionStatus()`  |
-| `isAuthorizing$`     | `BehaviorSubject<boolean>`  | Auth in progress               | `setIsAuthorizing()`     |
-| `isAuthorized$`      | `BehaviorSubject<boolean>`  | Auth complete                  | `setIsAuthorized()`      |
-| `account_list$`      | `BehaviorSubject<array>`    | User account list              | `setAccountList()`       |
-| `authData$`          | `BehaviorSubject<object>`   | Full auth data                 | `setAuthData()`          |
+| Stream              | Type                       | Description       | Setter                  |
+| ------------------- | -------------------------- | ----------------- | ----------------------- |
+| `connectionStatus$` | `BehaviorSubject<string>`  | Connection state  | `setConnectionStatus()` |
+| `isAuthorizing$`    | `BehaviorSubject<boolean>` | Auth in progress  | `setIsAuthorizing()`    |
+| `isAuthorized$`     | `BehaviorSubject<boolean>` | Auth complete     | `setIsAuthorized()`     |
+| `account_list$`     | `BehaviorSubject<array>`   | User account list | `setAccountList()`      |
+| `authData$`         | `BehaviorSubject<object>`  | Full auth data    | `setAuthData()`         |
 
 These streams are consumed by `CoreStoreProvider.tsx` which syncs the data into MobX stores for component access.
 
@@ -582,6 +585,7 @@ These streams are consumed by `CoreStoreProvider.tsx` which syncs the data into 
 ```
 
 The default public WebSocket URLs are constructed as:
+
 - **Staging:** `{derivws.url.staging}options/ws/public` → `https://staging-api.derivws.com/trading/v1/options/ws/public`
 - **Production:** `{derivws.url.production}options/ws/public` → `https://api.derivws.com/trading/v1/options/ws/public`
 
@@ -589,10 +593,10 @@ The default public WebSocket URLs are constructed as:
 
 The service automatically selects the appropriate base URL:
 
-| Environment  | Base URL                                     | Detection                       |
-| ------------ | -------------------------------------------- | ------------------------------- |
-| Staging      | `https://staging-api.derivws.com/trading/v1/`| `localhost` or staging domain   |
-| Production   | `https://api.derivws.com/trading/v1/`        | Production domain patterns      |
+| Environment | Base URL                                      | Detection                     |
+| ----------- | --------------------------------------------- | ----------------------------- |
+| Staging     | `https://staging-api.derivws.com/trading/v1/` | `localhost` or staging domain |
+| Production  | `https://api.derivws.com/trading/v1/`         | Production domain patterns    |
 
 ---
 
@@ -636,15 +640,15 @@ Look for `[DerivWS]` prefixed messages in the console:
 
 ## Security Considerations
 
-| Feature               | Description                                         |
-| --------------------- | --------------------------------------------------- |
-| PKCE protection       | Code verifier stored in sessionStorage, cleared after use |
-| CSRF protection       | State parameter validates OAuth callback            |
-| Token expiration      | `auth_info` includes `expires_at` timestamp         |
-| WSS protocol          | Always uses WebSocket Secure (encrypted)            |
-| Account validation    | Server validates `account_id` in WebSocket URL      |
-| OTP in URL            | One-time password for additional WebSocket security  |
-| Bearer token in header| Access token sent via Authorization header (not URL) |
+| Feature                | Description                                               |
+| ---------------------- | --------------------------------------------------------- |
+| PKCE protection        | Code verifier stored in sessionStorage, cleared after use |
+| CSRF protection        | State parameter validates OAuth callback                  |
+| Token expiration       | `auth_info` includes `expires_at` timestamp               |
+| WSS protocol           | Always uses WebSocket Secure (encrypted)                  |
+| Account validation     | Server validates `account_id` in WebSocket URL            |
+| OTP in URL             | One-time password for additional WebSocket security       |
+| Bearer token in header | Access token sent via Authorization header (not URL)      |
 
 ---
 
@@ -652,15 +656,15 @@ Look for `[DerivWS]` prefixed messages in the console:
 
 ### Common Issues
 
-| Problem                      | Cause                         | Solution                           |
-| ---------------------------- | ----------------------------- | ---------------------------------- |
-| "No auth_info found"         | User not authenticated        | Redirect to login                  |
-| "No accounts found"          | No trading accounts on server | Fallback to default server         |
-| "Failed to fetch OTP"        | Invalid account or expired token | Refresh token or re-authenticate |
-| WebSocket won't connect      | Invalid URL format            | Check URL cleaning logic           |
-| Connection drops repeatedly  | Network instability           | Check reconnection attempts limit  |
-| Auth state not updating      | Observable not subscribed     | Verify CoreStoreProvider listeners |
-| Wrong endpoint after login   | account_id not in localStorage| Check OAuth callback parameter handling |
+| Problem                     | Cause                            | Solution                                |
+| --------------------------- | -------------------------------- | --------------------------------------- |
+| "No auth_info found"        | User not authenticated           | Redirect to login                       |
+| "No accounts found"         | No trading accounts on server    | Fallback to default server              |
+| "Failed to fetch OTP"       | Invalid account or expired token | Refresh token or re-authenticate        |
+| WebSocket won't connect     | Invalid URL format               | Check URL cleaning logic                |
+| Connection drops repeatedly | Network instability              | Check reconnection attempts limit       |
+| Auth state not updating     | Observable not subscribed        | Verify CoreStoreProvider listeners      |
+| Wrong endpoint after login  | account_id not in localStorage   | Check OAuth callback parameter handling |
 
 ### Best Practices
 

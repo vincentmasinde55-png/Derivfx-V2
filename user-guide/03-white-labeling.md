@@ -7,18 +7,18 @@ Complete guide for customizing the Trading Bot platform with your own branding, 
 - [Overview](#overview)
 - [Quick Start (5 Steps)](#quick-start-5-steps)
 - [Brand Configuration Reference](#brand-configuration-reference)
-  - [Brand Identity](#brand-identity)
-  - [Color System](#color-system)
-  - [Typography](#typography)
-  - [Color Variants](#color-variants)
-  - [Theme Configuration](#theme-configuration)
+    - [Brand Identity](#brand-identity)
+    - [Color System](#color-system)
+    - [Typography](#typography)
+    - [Color Variants](#color-variants)
+    - [Theme Configuration](#theme-configuration)
 - [Platform Configuration](#platform-configuration)
-  - [Logo](#logo)
-  - [Footer](#footer)
-  - [Menu Customization](#menu-customization)
-  - [Hostname](#hostname)
-  - [Authentication URLs](#authentication-urls)
-  - [WebSocket URLs](#websocket-urls)
+    - [Logo](#logo)
+    - [Footer](#footer)
+    - [Menu Customization](#menu-customization)
+    - [Hostname](#hostname)
+    - [Authentication URLs](#authentication-urls)
+    - [WebSocket URLs](#websocket-urls)
 - [Logo Customization](#logo-customization)
 - [Best Practices](#best-practices)
 - [Testing Your Branding](#testing-your-branding)
@@ -39,14 +39,14 @@ The platform is designed for complete white-labeling through a centralized confi
 
 ### Key Files
 
-| File                             | Purpose                          |
-| -------------------------------- | -------------------------------- |
-| `brand.config.json`              | Central branding configuration   |
-| `src/components/layout/app-logo/BrandLogo.tsx` | Logo component          |
-| `src/components/layout/header/header-config.tsx` | Desktop menu items    |
-| `src/components/layout/header/mobile-menu/use-mobile-menu-config.tsx` | Mobile menu items |
-| `src/components/shared/styles/_themes.scss` | Auto-generated CSS variables (do not edit) |
-| `scripts/generate-brand-css.js`  | CSS generator script             |
+| File                                                                  | Purpose                                    |
+| --------------------------------------------------------------------- | ------------------------------------------ |
+| `brand.config.json`                                                   | Central branding configuration             |
+| `src/components/layout/app-logo/BrandLogo.tsx`                        | Logo component                             |
+| `src/components/layout/header/header-config.tsx`                      | Desktop menu items                         |
+| `src/components/layout/header/mobile-menu/use-mobile-menu-config.tsx` | Mobile menu items                          |
+| `src/components/shared/styles/_themes.scss`                           | Auto-generated CSS variables (do not edit) |
+| `scripts/generate-brand-css.js`                                       | CSS generator script                       |
 
 ---
 
@@ -169,12 +169,12 @@ The `brand.config.json` file is the central configuration for all branding. Belo
 
 ### Brand Identity
 
-| Field            | Type     | Required | Description                                    |
-| ---------------- | -------- | -------- | ---------------------------------------------- |
-| `brand_name`     | `string` | Yes      | Short brand name (e.g., `"TradePro"`)          |
-| `brand_domain`   | `string` | Yes      | Primary domain without protocol (e.g., `"tradepro.com"`) |
+| Field            | Type     | Required | Description                                                 |
+| ---------------- | -------- | -------- | ----------------------------------------------------------- |
+| `brand_name`     | `string` | Yes      | Short brand name (e.g., `"TradePro"`)                       |
+| `brand_domain`   | `string` | Yes      | Primary domain without protocol (e.g., `"tradepro.com"`)    |
 | `domain_name`    | `string` | Yes      | Display domain with capitalization (e.g., `"TradePro.com"`) |
-| `brand_hostname` | `object` | Yes      | Environment-specific hostnames                 |
+| `brand_hostname` | `object` | Yes      | Environment-specific hostnames                              |
 
 ```json
 {
@@ -189,6 +189,7 @@ The `brand.config.json` file is the central configuration for all branding. Belo
 ```
 
 **Where used:**
+
 - `brand_name` - Page titles, meta tags, analytics
 - `brand_domain` - Base domain for API calls and authentication
 - `domain_name` - Displayed in UI (footer, about sections)
@@ -202,11 +203,11 @@ All colors must be in hexadecimal format (`#RRGGBB`). Lowercase preferred.
 
 #### Primary Colors
 
-| Field       | Required | Usage                               |
-| ----------- | -------- | ----------------------------------- |
+| Field       | Required | Usage                                   |
+| ----------- | -------- | --------------------------------------- |
 | `primary`   | Yes      | Main brand color - buttons, links, CTAs |
 | `secondary` | Yes      | Secondary UI - borders, subtle elements |
-| `tertiary`  | No       | Accent color - highlights, badges   |
+| `tertiary`  | No       | Accent color - highlights, badges       |
 
 #### Semantic Colors
 
@@ -219,11 +220,11 @@ All colors must be in hexadecimal format (`#RRGGBB`). Lowercase preferred.
 
 #### Neutral Colors
 
-| Field     | Required | Usage                               |
-| --------- | -------- | ----------------------------------- |
-| `neutral` | Yes      | Disabled states, placeholders       |
-| `black`   | Yes      | Text, dark backgrounds              |
-| `white`   | Yes      | Light backgrounds, inverted text    |
+| Field     | Required | Usage                            |
+| --------- | -------- | -------------------------------- |
+| `neutral` | Yes      | Disabled states, placeholders    |
+| `black`   | Yes      | Text, dark backgrounds           |
+| `white`   | Yes      | Light backgrounds, inverted text |
 
 #### Grey Scale (All Required)
 
@@ -284,16 +285,16 @@ Running `npm run generate:brand-css` produces:
 
 #### Font Size Scale (Optional)
 
-| Field            | Default   |
-| ---------------- | --------- |
-| `font_sizes.xs`  | `0.75rem` |
-| `font_sizes.sm`  | `0.875rem`|
-| `font_sizes.base`| `1rem`    |
-| `font_sizes.lg`  | `1.125rem`|
-| `font_sizes.xl`  | `1.25rem` |
-| `font_sizes.2xl` | `1.5rem`  |
-| `font_sizes.3xl` | `1.875rem`|
-| `font_sizes.4xl` | `2.25rem` |
+| Field             | Default    |
+| ----------------- | ---------- |
+| `font_sizes.xs`   | `0.75rem`  |
+| `font_sizes.sm`   | `0.875rem` |
+| `font_sizes.base` | `1rem`     |
+| `font_sizes.lg`   | `1.125rem` |
+| `font_sizes.xl`   | `1.25rem`  |
+| `font_sizes.2xl`  | `1.5rem`   |
+| `font_sizes.3xl`  | `1.875rem` |
+| `font_sizes.4xl`  | `2.25rem`  |
 
 #### Font Loading Options
 
@@ -382,11 +383,11 @@ Controls automatic color variant generation for light/dark themes:
 }
 ```
 
-| Field              | Description                                   |
-| ------------------ | --------------------------------------------- |
-| `light_variants`   | Grey shades used in light mode                |
-| `dark_variants`    | Grey shades used in dark mode                 |
-| `opacity_variants` | Percentages for transparent color versions    |
+| Field              | Description                                |
+| ------------------ | ------------------------------------------ |
+| `light_variants`   | Grey shades used in light mode             |
+| `dark_variants`    | Grey shades used in dark mode              |
+| `opacity_variants` | Percentages for transparent color versions |
 
 ---
 
@@ -402,11 +403,11 @@ Controls automatic color variant generation for light/dark themes:
 }
 ```
 
-| Field                    | Default     | Description                                |
-| ------------------------ | ----------- | ------------------------------------------ |
-| `enable_dynamic_themes`  | `true`      | Enable light/dark theme switching          |
-| `auto_generate_variants` | `true`      | Auto-generate color shades from base colors|
-| `css_variable_prefix`    | `"--brand"` | Prefix for all generated CSS variables     |
+| Field                    | Default     | Description                                 |
+| ------------------------ | ----------- | ------------------------------------------- |
+| `enable_dynamic_themes`  | `true`      | Enable light/dark theme switching           |
+| `auto_generate_variants` | `true`      | Auto-generate color shades from base colors |
+| `css_variable_prefix`    | `"--brand"` | Prefix for all generated CSS variables      |
 
 ---
 
@@ -472,15 +473,15 @@ Place the image in the `public/images/` directory.
 
 #### Logo Configuration Fields
 
-| Field            | Type      | Required       | Description                         |
-| ---------------- | --------- | -------------- | ----------------------------------- |
-| `type`           | `string`  | Yes            | `"component"` or `"image"`          |
-| `component_name` | `string`  | If component   | React component name to render      |
-| `image_url`      | `string`  | If image       | Path relative to `public/`          |
-| `alt_text`       | `string`  | Yes            | Accessibility text for screen readers |
-| `link_url`       | `string`  | Yes            | Click destination (usually `"/"`)   |
-| `show_text`      | `boolean` | No             | Show text alongside logo            |
-| `text`           | `string`  | If show_text   | Text to display next to logo        |
+| Field            | Type      | Required     | Description                           |
+| ---------------- | --------- | ------------ | ------------------------------------- |
+| `type`           | `string`  | Yes          | `"component"` or `"image"`            |
+| `component_name` | `string`  | If component | React component name to render        |
+| `image_url`      | `string`  | If image     | Path relative to `public/`            |
+| `alt_text`       | `string`  | Yes          | Accessibility text for screen readers |
+| `link_url`       | `string`  | Yes          | Click destination (usually `"/"`)     |
+| `show_text`      | `boolean` | No           | Show text alongside logo              |
+| `text`           | `string`  | If show_text | Text to display next to logo          |
 
 ---
 
@@ -499,10 +500,10 @@ Control footer and mobile menu element visibility:
 }
 ```
 
-| Setting                    | Default | Effect                                        |
-| -------------------------- | ------- | --------------------------------------------- |
+| Setting                    | Default | Effect                                                |
+| -------------------------- | ------- | ----------------------------------------------------- |
 | `enable_language_settings` | `true`  | Shows/hides language selector in footer + mobile menu |
-| `enable_theme_toggle`      | `true`  | Shows/hides theme toggle in footer + mobile menu |
+| `enable_theme_toggle`      | `true`  | Shows/hides theme toggle in footer + mobile menu      |
 
 > **Important — Translations are optional.** The app is wrapped with `@deriv-com/translations` `TranslationProvider`, but multi-language support **only works** when you have a complete translation workflow configured with [Crowdin](https://crowdin.com/) and a CDN serving the translation files (`TRANSLATIONS_CDN_URL` environment variable). Without this setup, the app defaults to English and functions normally.
 >
@@ -510,12 +511,12 @@ Control footer and mobile menu element visibility:
 
 #### Common Configurations
 
-| Scenario                        | `language_settings` | `theme_toggle` | Result                    |
-| ------------------------------- | ------------------- | -------------- | ------------------------- |
-| No translations (recommended default) | `false`       | `true`         | Only theme toggle         |
-| Full features (translations configured) | `true`      | `true`         | Both visible              |
-| Locked theme, with translations | `true`              | `false`        | Only language selector    |
-| Minimal UI                      | `false`             | `false`        | Clean footer, no toggles  |
+| Scenario                                | `language_settings` | `theme_toggle` | Result                   |
+| --------------------------------------- | ------------------- | -------------- | ------------------------ |
+| No translations (recommended default)   | `false`             | `true`         | Only theme toggle        |
+| Full features (translations configured) | `true`              | `true`         | Both visible             |
+| Locked theme, with translations         | `true`              | `false`        | Only language selector   |
+| Minimal UI                              | `false`             | `false`        | Clean footer, no toggles |
 
 ---
 
@@ -579,13 +580,13 @@ return [
 
 The hamburger menu icon automatically hides when there are no items to display:
 
-| Custom Items | Theme Toggle | Logged In | Menu Visible?           |
-| ------------ | ------------ | --------- | ----------------------- |
-| No           | Yes          | No        | Yes (theme toggle)      |
-| No           | No           | No        | **No** (nothing to show)|
-| No           | No           | Yes       | Yes (logout button)     |
-| Yes          | No           | No        | Yes (custom items)      |
-| Yes          | Yes          | Yes       | Yes (all features)      |
+| Custom Items | Theme Toggle | Logged In | Menu Visible?            |
+| ------------ | ------------ | --------- | ------------------------ |
+| No           | Yes          | No        | Yes (theme toggle)       |
+| No           | No           | No        | **No** (nothing to show) |
+| No           | No           | Yes       | Yes (logout button)      |
+| Yes          | No           | No        | Yes (custom items)       |
+| Yes          | Yes          | Yes       | Yes (all features)       |
 
 ---
 
@@ -701,13 +702,13 @@ export const BrandLogo = ({ width = 120, height = 32 }) => {
 
 ### Logo Specifications
 
-| Spec          | Recommendation                         |
-| ------------- | -------------------------------------- |
-| **Format**    | SVG (preferred) or PNG                 |
-| **Size**      | ~120x32px (width x height)             |
-| **Retina**    | 2x for PNG (240x64px)                  |
-| **Color**     | Use `currentColor` for theme support   |
-| **File Size** | < 50KB optimized                       |
+| Spec          | Recommendation                       |
+| ------------- | ------------------------------------ |
+| **Format**    | SVG (preferred) or PNG               |
+| **Size**      | ~120x32px (width x height)           |
+| **Retina**    | 2x for PNG (240x64px)                |
+| **Color**     | Use `currentColor` for theme support |
+| **File Size** | < 50KB optimized                     |
 
 ### Exporting from Design Tools
 
@@ -725,13 +726,14 @@ export const BrandLogo = ({ width = 120, height = 32 }) => {
 
 Ensure your colors meet WCAG 2.1 standards:
 
-| Element          | Minimum Contrast Ratio |
-| ---------------- | ---------------------- |
-| Normal text      | 4.5:1                  |
-| Large text (18px+) | 3:1                  |
-| UI components    | 3:1                    |
+| Element            | Minimum Contrast Ratio |
+| ------------------ | ---------------------- |
+| Normal text        | 4.5:1                  |
+| Large text (18px+) | 3:1                    |
+| UI components      | 3:1                    |
 
 Test with:
+
 - [WebAIM Contrast Checker](https://webaim.org/resources/contrastchecker/)
 - Chrome DevTools > Lighthouse > Accessibility audit
 
@@ -764,6 +766,7 @@ Test with:
 ### Visual Testing Checklist
 
 **Desktop:**
+
 - [ ] Header with logo displays correctly
 - [ ] Navigation menu items render
 - [ ] Button colors (primary, secondary) are correct
@@ -774,6 +777,7 @@ Test with:
 - [ ] Theme toggle switches between light/dark correctly
 
 **Mobile:**
+
 - [ ] Logo in mobile header
 - [ ] Hamburger menu appears (if items configured)
 - [ ] Mobile menu items render correctly
@@ -782,6 +786,7 @@ Test with:
 - [ ] Touch targets are at least 44x44px
 
 **Theme Testing:**
+
 - [ ] Toggle between light and dark modes
 - [ ] All colors adapt properly in both themes
 - [ ] Logo is visible in both themes
@@ -798,6 +803,7 @@ npm run build                # Ensures no build errors
 ### Browser Testing
 
 Test in Chrome/Edge, Firefox, and Safari. Verify:
+
 - Color rendering consistency
 - Font loading and display
 - Logo display at various sizes
@@ -813,6 +819,7 @@ Test in Chrome/Edge, Firefox, and Safari. Verify:
 **Cause:** CSS variables not regenerated after config change.
 
 **Fix:**
+
 1. Run `npm run generate:brand-css`
 2. Restart dev server: `npm start`
 3. Hard refresh browser (Ctrl+Shift+R / Cmd+Shift+R)
@@ -856,6 +863,7 @@ Only hexadecimal colors are supported:
 ### Mobile Menu Not Showing
 
 By design, the mobile menu hides when empty. It appears when:
+
 - Custom menu items are added, OR
 - Theme toggle is enabled (`enable_theme_toggle: true`), OR
 - User is logged in (logout button available)
@@ -883,9 +891,15 @@ By design, the mobile menu hides when empty. It appears when:
         "black": "#000000",
         "white": "#ffffff",
         "grey": {
-            "50": "#f7f7f7", "100": "#e8e8e8", "200": "#d1d1d1",
-            "300": "#b3b3b3", "400": "#8c8c8c", "500": "#666666",
-            "600": "#4d4d4d", "700": "#333333", "800": "#1a1a1a",
+            "50": "#f7f7f7",
+            "100": "#e8e8e8",
+            "200": "#d1d1d1",
+            "300": "#b3b3b3",
+            "400": "#8c8c8c",
+            "500": "#666666",
+            "600": "#4d4d4d",
+            "700": "#333333",
+            "800": "#1a1a1a",
             "900": "#000000"
         }
     },
@@ -924,9 +938,15 @@ By design, the mobile menu hides when empty. It appears when:
         "black": "#0f0f23",
         "white": "#ffffff",
         "grey": {
-            "50": "#f9fafb", "100": "#f3f4f6", "200": "#e5e7eb",
-            "300": "#d1d5db", "400": "#9ca3af", "500": "#6b7280",
-            "600": "#4b5563", "700": "#374151", "800": "#1f2937",
+            "50": "#f9fafb",
+            "100": "#f3f4f6",
+            "200": "#e5e7eb",
+            "300": "#d1d5db",
+            "400": "#9ca3af",
+            "500": "#6b7280",
+            "600": "#4b5563",
+            "700": "#374151",
+            "800": "#1f2937",
             "900": "#111827"
         }
     },
@@ -963,9 +983,15 @@ By design, the mobile menu hides when empty. It appears when:
         "black": "#0f172a",
         "white": "#ffffff",
         "grey": {
-            "50": "#f8fafc", "100": "#f1f5f9", "200": "#e2e8f0",
-            "300": "#cbd5e1", "400": "#94a3b8", "500": "#64748b",
-            "600": "#475569", "700": "#334155", "800": "#1e293b",
+            "50": "#f8fafc",
+            "100": "#f1f5f9",
+            "200": "#e2e8f0",
+            "300": "#cbd5e1",
+            "400": "#94a3b8",
+            "500": "#64748b",
+            "600": "#475569",
+            "700": "#334155",
+            "800": "#1e293b",
             "900": "#0f172a"
         }
     },

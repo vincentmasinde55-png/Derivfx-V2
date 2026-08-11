@@ -312,11 +312,9 @@ export default class GoogleDriveStore {
         // Prevent crash if user clicks before client initializes (3 second delay)
         if (!this.client) {
             ErrorLogger.warn('GoogleDrive', 'Client not initialized yet');
-            botNotification(
-                localize('Google Drive is still loading. Please try again in a moment.'),
-                undefined,
-                { closeButton: true }
-            );
+            botNotification(localize('Google Drive is still loading. Please try again in a moment.'), undefined, {
+                closeButton: true,
+            });
             return;
         }
 

@@ -8,11 +8,11 @@ Complete guide for setting up optional monitoring, error tracking, and analytics
 - [Datadog RUM (Real User Monitoring)](#datadog-rum-real-user-monitoring)
 - [TrackJS (Error Tracking)](#trackjs-error-tracking)
 - [Rudderstack Analytics](#rudderstack-analytics)
-  - [Installation](#analytics-installation)
-  - [Initial Setup](#analytics-initial-setup)
-  - [Creating Analytics Structure](#creating-analytics-structure)
-  - [Event Tracking Examples](#event-tracking-examples)
-  - [Component Integration](#component-integration)
+    - [Installation](#analytics-installation)
+    - [Initial Setup](#analytics-initial-setup)
+    - [Creating Analytics Structure](#creating-analytics-structure)
+    - [Event Tracking Examples](#event-tracking-examples)
+    - [Component Integration](#component-integration)
 - [Growthbook Feature Flags](#growthbook-feature-flags)
 - [Implementation Checklist](#implementation-checklist)
 - [Testing](#testing)
@@ -25,11 +25,11 @@ Complete guide for setting up optional monitoring, error tracking, and analytics
 
 The following packages are **optional** and not included in the base application:
 
-| Package                  | Purpose                              | Category           |
-| ------------------------ | ------------------------------------ | ------------------ |
-| `@datadog/browser-rum`   | Session replay, performance monitoring | Monitoring       |
-| `trackjs`                | JavaScript error tracking            | Error Tracking     |
-| `@deriv-com/analytics`   | User behavior tracking (Rudderstack) | Analytics          |
+| Package                | Purpose                                | Category       |
+| ---------------------- | -------------------------------------- | -------------- |
+| `@datadog/browser-rum` | Session replay, performance monitoring | Monitoring     |
+| `trackjs`              | JavaScript error tracking              | Error Tracking |
+| `@deriv-com/analytics` | User behavior tracking (Rudderstack)   | Analytics      |
 
 ### What Was Removed
 
@@ -192,8 +192,7 @@ const useTrackjs = () => {
                     token: process.env.TRACKJS_TOKEN!,
                     userId: loginid,
                     version:
-                        (document.querySelector('meta[name=version]') as HTMLMetaElement)?.content ??
-                        trackjs_version,
+                        (document.querySelector('meta[name=version]') as HTMLMetaElement)?.content ?? trackjs_version,
                 });
             }
         } catch (error) {
@@ -297,13 +296,12 @@ export const AnalyticsInitializer = async () => {
         const hasRudderStack = !!(process.env.RUDDERSTACK_KEY && flags?.tracking_rudderstack);
 
         if (hasRudderStack) {
-            let ppc_campaign_cookies =
-                (Cookies.get('utm_data') as unknown as Record<string, string>) || {
-                    utm_source: 'no source',
-                    utm_medium: 'no medium',
-                    utm_campaign: 'no campaign',
-                    utm_content: 'no content',
-                };
+            let ppc_campaign_cookies = (Cookies.get('utm_data') as unknown as Record<string, string>) || {
+                utm_source: 'no source',
+                utm_medium: 'no medium',
+                utm_campaign: 'no campaign',
+                utm_content: 'no content',
+            };
 
             const config = {
                 rudderstackKey: process.env.RUDDERSTACK_KEY!,
@@ -442,11 +440,7 @@ import { ACTION, AnalyticsTracker, form_name_v2, TBotFormV2BaseEvent, TUploadStr
 
 const tracker = Analytics as unknown as AnalyticsTracker;
 
-export const rudderStackSendOpenEvent = ({
-    subpage_name,
-    subform_source,
-    subform_name,
-}: TBotFormV2BaseEvent) => {
+export const rudderStackSendOpenEvent = ({ subpage_name, subform_source, subform_name }: TBotFormV2BaseEvent) => {
     tracker.trackEvent('ce_bot_form_v2', {
         action: ACTION.OPEN,
         form_name: form_name_v2,
@@ -485,10 +479,7 @@ import { ACTION, AnalyticsTracker, form_name_v2, TDashboardClickEvent } from './
 
 const tracker = Analytics as unknown as AnalyticsTracker;
 
-export const rudderStackSendDashboardClickEvent = ({
-    dashboard_click_name,
-    subpage_name,
-}: TDashboardClickEvent) => {
+export const rudderStackSendDashboardClickEvent = ({ dashboard_click_name, subpage_name }: TDashboardClickEvent) => {
     tracker.trackEvent('ce_bot_form_v2', {
         action: ACTION.DASHBOARD_CLICK,
         form_name: form_name_v2,
@@ -515,10 +506,7 @@ export const STATE_TYPES = {
     INDICATOR_DELETED: 'INDICATOR_DELETED',
 } as const;
 
-export const rudderStackChartAnalyticsData = (
-    state: keyof typeof STATE_TYPES,
-    options: Record<string, any>
-) => {
+export const rudderStackChartAnalyticsData = (state: keyof typeof STATE_TYPES, options: Record<string, any>) => {
     switch (state) {
         case STATE_TYPES.CHART_TYPE_CHANGE:
             if (!options.chart_type_name) return;
@@ -652,10 +640,9 @@ npm install @deriv-com/analytics
 1. **Replace the stub implementation:** Delete `src/hooks/remote-config/useRemoteConfig.ts`
 
 2. **Recreate Growthbook hooks** in `src/hooks/growthbook/`:
-
-   - `useRemoteConfig.ts` - Fetches remote configuration
-   - `useGrowthbookGetFeatureValue.ts` - Gets feature flag values
-   - `useIsGrowthbookLoaded.ts` - Checks if Growthbook is loaded
+    - `useRemoteConfig.ts` - Fetches remote configuration
+    - `useGrowthbookGetFeatureValue.ts` - Gets feature flag values
+    - `useIsGrowthbookLoaded.ts` - Checks if Growthbook is loaded
 
 3. **Update imports:** Change all imports from `@/hooks/remote-config/useRemoteConfig` to `@/hooks/growthbook/useRemoteConfig`
 
@@ -778,12 +765,12 @@ These files currently use the stub and would need updating:
 
 ## Cost Considerations
 
-| Service      | Free Tier                | Paid Plans                          |
-| ------------ | ------------------------ | ----------------------------------- |
-| Datadog      | 14-day trial             | Based on sessions and data volume   |
-| TrackJS      | Free for small projects  | Based on error volume               |
-| Rudderstack  | Free tier available      | Based on event volume               |
-| Growthbook   | Free self-hosted         | Cloud plans for managed hosting     |
+| Service     | Free Tier               | Paid Plans                        |
+| ----------- | ----------------------- | --------------------------------- |
+| Datadog     | 14-day trial            | Based on sessions and data volume |
+| TrackJS     | Free for small projects | Based on error volume             |
+| Rudderstack | Free tier available     | Based on event volume             |
+| Growthbook  | Free self-hosted        | Cloud plans for managed hosting   |
 
 Evaluate your monitoring needs and budget before enabling these services. For smaller deployments, TrackJS + Rudderstack free tiers may be sufficient. For production-scale applications, Datadog provides the most comprehensive monitoring.
 
@@ -793,12 +780,13 @@ Evaluate your monitoring needs and budget before enabling these services. For sm
 
 Files removed from the base application that can be recreated using this guide:
 
-| Removed File/Directory          | Recreation Guide Section             |
-| ------------------------------- | ------------------------------------ |
-| `src/utils/datadog.ts`          | [Datadog RUM](#datadog-rum-real-user-monitoring) |
-| `src/hooks/useTrackjs.ts`       | [TrackJS](#trackjs-error-tracking)   |
-| `src/utils/analytics/`          | [Rudderstack Analytics](#rudderstack-analytics) |
-| `src/hooks/growthbook/`         | [Growthbook Feature Flags](#growthbook-feature-flags) |
+| Removed File/Directory    | Recreation Guide Section                              |
+| ------------------------- | ----------------------------------------------------- |
+| `src/utils/datadog.ts`    | [Datadog RUM](#datadog-rum-real-user-monitoring)      |
+| `src/hooks/useTrackjs.ts` | [TrackJS](#trackjs-error-tracking)                    |
+| `src/utils/analytics/`    | [Rudderstack Analytics](#rudderstack-analytics)       |
+| `src/hooks/growthbook/`   | [Growthbook Feature Flags](#growthbook-feature-flags) |
 
 **Stub still in codebase:**
+
 - `src/hooks/remote-config/useRemoteConfig.ts` - Returns disabled feature flags by default
