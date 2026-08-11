@@ -6,35 +6,23 @@ import brandConfig from '../../../../../brand.config.json';
 // Constants - Domain & Server Configuration (from brand.config.json)
 // =============================================================================
 
-// Production app domains
 export const PRODUCTION_DOMAINS = {
     COM: brandConfig.platform.hostname.production.com,
 } as const;
 
-// Staging app domains
 export const STAGING_DOMAINS = {
     COM: brandConfig.platform.hostname.staging.com,
 } as const;
 
-// Deriv Options API REST base URLs.
-// These are HTTPS because they are used by fetch() for accounts + OTP.
 export const DERIV_API_BASE_URLS = {
     STAGING: brandConfig.platform.derivws.url.staging,
     PRODUCTION: brandConfig.platform.derivws.url.production,
 } as const;
 
-// Deriv Options API WebSocket endpoints.
-// IMPORTANT: WebSocket() requires ws:// or wss://, not https://.
-// Public is unauthenticated and is used before OAuth login so the app can
-// load active symbols without getting stuck on the initialization screen.
 export const WS_SERVERS = {
     STAGING: DERIV_API_BASE_URLS.STAGING.replace(/^https:/, 'wss:') + 'options/ws/public',
     PRODUCTION: DERIV_API_BASE_URLS.PRODUCTION.replace(/^https:/, 'wss:') + 'options/ws/public',
 } as const;
-
-// =============================================================================
-// Helper Functions
-// =============================================================================
 
 export const isProduction = () => {
     const hostname = window.location.hostname;
@@ -46,37 +34,22 @@ export const isLocal = () => /localhost(:\d+)?$/i.test(window.location.hostname)
 
 const getDefaultServerURL = () => {
     const isProductionEnv = isProduction();
-
     try {
         return isProductionEnv ? WS_SERVERS.PRODUCTION : WS_SERVERS.STAGING;
     } catch (error) {
         console.error('Error in getDefaultServerURL:', error);
     }
-
     return isProductionEnv ? WS_SERVERS.PRODUCTION : WS_SERVERS.STAGING;
 };
 
-/**
- * Gets the WebSocket URL using the new Deriv Options API authenticated flow.
- *
- * Unauthenticated users use the public WebSocket for market metadata.
- * Authenticated users use:
- *   OAuth access token -> GET accounts -> POST account/{id}/otp -> returned wss URL
- */
 export const getSocketURL = async (): Promise<string> => {
     try {
         const authInfo = OAuthTokenExchangeService.getAuthInfo();
+        if (!authInfo || !authInfo.access_token) return getDefaultServerURL();
 
-        if (!authInfo || !authInfo.access_token) {
-            return getDefaultServerURL();
-        }
-
-        const wsUrl = await DerivWSAccountsService.getAuthenticatedWebSocketURL(authInfo.access_token);
-        return wsUrl;
+        return await DerivWSAccountsService.getAuthenticatedWebSocketURL(authInfo.access_token);
     } catch (error) {
         console.error('[DerivWS] Error in getSocketURL:', error);
-        // Keep the public market-data connection available if authenticated
-        // setup fails. The UI can then still initialize instead of hanging.
         return getDefaultServerURL();
     }
 };
@@ -84,14 +57,12 @@ export const getSocketURL = async (): Promise<string> => {
 export const getDebugServiceWorker = () => {
     const debug_service_worker_flag = window.localStorage.getItem('debug_service_worker');
     if (debug_service_worker_flag) return !!parseInt(debug_service_worker_flag);
-
     return false;
 };
 
 const generateCSRFToken = (): string => {
     const array = new Uint8Array(32);
     crypto.getRandomValues(array);
-
     const base64 = btoa(String.fromCharCode(...array));
     return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 };
@@ -99,7 +70,6 @@ const generateCSRFToken = (): string => {
 const generateCodeVerifier = (): string => {
     const array = new Uint8Array(32);
     crypto.getRandomValues(array);
-
     const base64 = btoa(String.fromCharCode(...array));
     return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 };
@@ -108,7 +78,6 @@ const generateCodeChallenge = async (verifier: string): Promise<string> => {
     const encoder = new TextEncoder();
     const data = encoder.encode(verifier);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const base64 = btoa(String.fromCharCode(...hashArray));
     return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
@@ -122,16 +91,13 @@ const storeCodeVerifier = (verifier: string): void => {
 export const getCodeVerifier = (): string | null => {
     const verifier = sessionStorage.getItem('oauth_code_verifier');
     const timestamp = sessionStorage.getItem('oauth_code_verifier_timestamp');
-
     if (!verifier || !timestamp) return null;
 
     const verifierAge = Date.now() - parseInt(timestamp, 10);
     if (verifierAge > 600000) {
-        sessionStorage.removeItem('oauth_code_verifier');
-        sessionStorage.removeItem('oauth_code_verifier_timestamp');
+        clearCodeVerifier();
         return null;
     }
-
     return verifier;
 };
 
@@ -148,16 +114,13 @@ const storeCSRFToken = (token: string): void => {
 export const validateCSRFToken = (token: string): boolean => {
     const storedToken = sessionStorage.getItem('oauth_csrf_token');
     const timestamp = sessionStorage.getItem('oauth_csrf_token_timestamp');
-
     if (!storedToken || !timestamp || storedToken !== token) return false;
 
     const tokenAge = Date.now() - parseInt(timestamp, 10);
     if (tokenAge > 600000) {
-        sessionStorage.removeItem('oauth_csrf_token');
-        sessionStorage.removeItem('oauth_csrf_token_timestamp');
+        clearCSRFToken();
         return false;
     }
-
     return true;
 };
 
@@ -166,35 +129,42 @@ export const clearCSRFToken = (): void => {
     sessionStorage.removeItem('oauth_csrf_token_timestamp');
 };
 
+/**
+ * Generate the single OAuth2 + PKCE authorization URL used by DerivFX.
+ *
+ * The public OAuth client ID is exposed to the browser at build time as APP_ID.
+ * APP_ID is intentionally used here because Vercel currently provides APP_ID,
+ * while CLIENT_ID is optional for backwards compatibility.
+ */
 export const generateOAuthURL = async (prompt?: string) => {
     try {
         const environment = isProduction() ? 'production' : 'staging';
         const hostname = brandConfig?.platform.auth2_url?.[environment];
-        const clientId = process.env.CLIENT_ID;
+        const clientId = process.env.APP_ID || process.env.CLIENT_ID || process.env.NEXT_PUBLIC_APP_ID;
 
-        if (hostname && clientId) {
-            const csrfToken = generateCSRFToken();
-            storeCSRFToken(csrfToken);
+        if (!hostname) throw new Error('OAuth authentication endpoint is missing.');
+        if (!clientId) throw new Error('OAuth client ID is missing. Set APP_ID in Vercel.');
 
-            const codeVerifier = generateCodeVerifier();
-            const codeChallenge = await generateCodeChallenge(codeVerifier);
-            storeCodeVerifier(codeVerifier);
+        const csrfToken = generateCSRFToken();
+        const codeVerifier = generateCodeVerifier();
+        const codeChallenge = await generateCodeChallenge(codeVerifier);
 
-            const protocol = window.location.protocol;
-            const host = window.location.host;
-            const redirectUrl = `${protocol}//${host}`;
-            const scopes = 'trade';
+        // Store the exact values used by useOAuthCallback + OAuthTokenExchangeService.
+        storeCSRFToken(csrfToken);
+        storeCodeVerifier(codeVerifier);
 
-            let oauthUrl = `${hostname}auth?scope=${scopes}&response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUrl)}&state=${csrfToken}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+        const redirectUrl = window.location.origin;
+        const url = new URL(`${hostname}auth`);
+        url.searchParams.set('response_type', 'code');
+        url.searchParams.set('client_id', String(clientId));
+        url.searchParams.set('redirect_uri', redirectUrl);
+        url.searchParams.set('scope', 'trade');
+        url.searchParams.set('state', csrfToken);
+        url.searchParams.set('code_challenge', codeChallenge);
+        url.searchParams.set('code_challenge_method', 'S256');
+        if (prompt) url.searchParams.set('prompt', prompt);
 
-            if (prompt) {
-                oauthUrl += `&prompt=${encodeURIComponent(prompt)}`;
-            }
-
-            return oauthUrl;
-        }
-
-        throw new Error('OAuth configuration missing: CLIENT_ID or authentication hostname.');
+        return url.toString();
     } catch (error) {
         console.error('[OAuth] Error generating OAuth URL:', error);
         throw error;
