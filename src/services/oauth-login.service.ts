@@ -1,7 +1,8 @@
 import { OAuthTokenExchangeService } from './oauth-token-exchange.service';
 import { DerivWSAccountsService, DerivAccount } from './derivws-accounts.service';
 
-// OAuth state/PKCE data must survive the round-trip to auth.deriv.com.
+// OAuth state/PKCE data must survive the round-trip to auth.deriv.com and also
+// survive a Vercel apex <-> www redirect. A domain cookie covers both hosts.
 const VERIFIER_KEY = 'oauth_code_verifier';
 const VERIFIER_TIMESTAMP_KEY = 'oauth_code_verifier_timestamp';
 const STATE_KEY = 'oauth_csrf_token';
@@ -23,33 +24,49 @@ const challengeFor = async (verifier: string) => {
 };
 
 const safeSet = (storage: Storage, key: string, value: string) => {
+    try { storage.setItem(key, value); } catch { /* ignore */ }
+};
+
+const setCookie = (key: string, value: string) => {
     try {
-        storage.setItem(key, value);
+        document.cookie = `${encodeURIComponent(key)}=${encodeURIComponent(value)}; Max-Age=900; Path=/; Domain=.derivfx.site; Secure; SameSite=Lax`;
+    } catch { /* ignore */ }
+};
+
+const getCookie = (key: string) => {
+    try {
+        const prefix = `${encodeURIComponent(key)}=`;
+        const item = document.cookie.split('; ').find(row => row.startsWith(prefix));
+        return item ? decodeURIComponent(item.slice(prefix.length)) : null;
     } catch {
-        // Restricted/private browser storage: use the other storage layer.
+        return null;
     }
+};
+
+const deleteCookie = (key: string) => {
+    try {
+        document.cookie = `${encodeURIComponent(key)}=; Max-Age=0; Path=/; Domain=.derivfx.site; Secure; SameSite=Lax`;
+    } catch { /* ignore */ }
 };
 
 const saveOAuthValue = (key: string, value: string) => {
     safeSet(sessionStorage, key, value);
     safeSet(localStorage, key, value);
+    setCookie(key, value);
 };
 
 const readOAuthValue = (key: string) => {
     try {
-        return sessionStorage.getItem(key) || localStorage.getItem(key);
+        return sessionStorage.getItem(key) || localStorage.getItem(key) || getCookie(key);
     } catch {
-        try {
-            return localStorage.getItem(key);
-        } catch {
-            return null;
-        }
+        return getCookie(key);
     }
 };
 
 const clearOAuthValue = (key: string) => {
     try { sessionStorage.removeItem(key); } catch { /* ignore */ }
     try { localStorage.removeItem(key); } catch { /* ignore */ }
+    deleteCookie(key);
 };
 
 export type OAuthMode = 'login' | 'signup';
@@ -121,9 +138,8 @@ export class OAuthLoginService {
             clearOAuthValue(STATE_TIMESTAMP_KEY);
             clearOAuthValue('derivfx_oauth_mode');
 
-            // Use a same-origin relative URL. This works whether Vercel currently
-            // serves the page as derivfx.site or www.derivfx.site and avoids the
-            // SecurityError caused by replaceState() across origins.
+            // Never push an absolute URL from the apex into a www document.
+            // The relative URL is same-origin on either host.
             window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.hash || ''}`);
             return { accounts };
         } catch (error) {
