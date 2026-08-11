@@ -1,41 +1,54 @@
 import React from 'react';
+import classNames from 'classnames';
+import { observer } from 'mobx-react-lite';
+import Text from '@/components/shared_ui/text';
+import { useStore } from '@/hooks/useStore';
+import { localize } from '@deriv-com/translations';
+import { useDevice } from '@deriv-com/ui';
+import OnboardTourHandler from '../tutorials/dbot-tours/onboarding-tour';
+import Announcements from './announcements';
+import Cards from './cards';
+import InfoPanel from './info-panel';
 
-export default function ChunkLoader({ message }: { message: string }) {
+type TMobileIconGuide = {
+    handleTabChange: (active_number: number) => void;
+};
+
+const DashboardComponent = observer(({ handleTabChange }: TMobileIconGuide) => {
+    const { load_modal, dashboard, client } = useStore();
+    const { dashboard_strategies } = load_modal;
+    const { active_tab, active_tour } = dashboard;
+    const has_dashboard_strategies = !!dashboard_strategies?.length;
+    const { isDesktop, isTablet } = useDevice();
+
     return (
-        <div
-            className='app-root derivfx-loader'
-            style={{
-                minHeight: '100vh',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'radial-gradient(circle at 50% 35%, #102a56 0%, #071426 42%, #020711 100%)',
-                color: '#fff',
-                gap: 18,
-                padding: 24,
-                position: 'relative',
-                overflow: 'hidden',
-            }}
-        >
-            <div style={{ position: 'absolute', width: 280, height: 280, borderRadius: '50%', background: 'rgba(0, 214, 255, .08)', filter: 'blur(8px)', top: '18%', left: '50%', transform: 'translate(-50%, -50%)' }} />
-            <img src='/deriv-logo.svg' alt='DerivFX' style={{ width: 'min(250px, 68vw)', height: 'auto', display: 'block', position: 'relative' }} />
-            <div aria-label={message} style={{ display: 'flex', gap: 7, alignItems: 'center', height: 30 }}>
-                {[0, 1, 2].map(index => (
-                    <span
-                        key={index}
-                        style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: '50%',
-                            background: index === 1 ? '#ff3b43' : '#16c8ff',
-                            animation: `derivfx-pulse 1s ease-in-out ${index * 0.16}s infinite`,
-                        }}
-                    />
-                ))}
+        <React.Fragment>
+            <div className={classNames('tab__dashboard', { 'tab__dashboard--tour-active': active_tour })}>
+                <div className='tab__dashboard__content'>
+                    {client.is_logged_in && (
+                        <Announcements is_mobile={!isDesktop} is_tablet={isTablet} handleTabChange={handleTabChange} />
+                    )}
+                    <div className='quick-panel'>
+                        <div className={classNames('tab__dashboard__header', {
+                            'tab__dashboard__header--listed': isDesktop && has_dashboard_strategies,
+                        })}>
+                            {!has_dashboard_strategies && (
+                                <Text className='title' as='h2' color='prominent' size={isDesktop ? 'sm' : 's'} lineHeight='xxl' weight='bold'>
+                                    {localize('Load or build your bot')}
+                                </Text>
+                            )}
+                            <Text as='p' color='prominent' lineHeight='s' size={isDesktop ? 's' : 'xxs'} className={classNames('subtitle', { 'subtitle__has-list': has_dashboard_strategies })}>
+                                {localize('Import a bot from your computer or Google Drive, build it from scratch, or start with a quick strategy.')}
+                            </Text>
+                        </div>
+                        <Cards has_dashboard_strategies={has_dashboard_strategies} is_mobile={!isDesktop} />
+                    </div>
+                </div>
             </div>
-            <div className='load-message' style={{ color: 'rgba(255,255,255,.86)', fontWeight: 600, fontSize: 14, position: 'relative' }}>{message}</div>
-            <style>{`@keyframes derivfx-pulse{0%,100%{transform:translateY(0);opacity:.35}50%{transform:translateY(-7px);opacity:1}}`}</style>
-        </div>
+            <InfoPanel />
+            {active_tab === 0 && <OnboardTourHandler is_mobile={!isDesktop} />}
+        </React.Fragment>
     );
-}
+});
+
+export default DashboardComponent;
