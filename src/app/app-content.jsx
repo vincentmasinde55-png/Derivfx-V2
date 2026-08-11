@@ -109,7 +109,18 @@ const AppContent = observer(() => {
             try {
                 const { active_symbols } = ApiHelpers.instance;
                 if (!active_symbols) throw new Error('Deriv API helpers were not initialized.');
-                await active_symbols.retrieveActiveSymbols(true);
+
+                // Never allow symbol initialization to block the entire app forever.
+                await Promise.race([
+                    active_symbols.retrieveActiveSymbols(true),
+                    new Promise((_, reject) =>
+                        window.setTimeout(
+                            () => reject(new Error('Deriv active-symbols request timed out after 15 seconds.')),
+                            15000
+                        )
+                    ),
+                ]);
+
                 setInitializationError('');
                 setIsLoading(false);
             } catch (error) {
@@ -154,7 +165,7 @@ const AppContent = observer(() => {
 
     if (common?.error) return null;
 
-    if (is_loading) return <ChunkLoader message={localize('Connecting to Deriv...')} />;
+    if (is_loading) return <ChunkLoader message={localize('Connecting to DerivFX New API...')} />;
 
     if (initialization_error) {
         return (
