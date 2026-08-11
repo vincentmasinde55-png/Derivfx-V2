@@ -1,4 +1,3 @@
-import { clearCodeVerifier, getCodeVerifier } from '@/components/shared';
 import { ErrorLogger } from '@/utils/error-logger';
 
 const REDIRECT_URI = 'https://derivfx.site';
@@ -51,9 +50,8 @@ export class OAuthTokenExchangeService {
         return this.getAuthInfo()?.access_token || null;
     }
 
-    static async exchangeCodeForToken(code: string): Promise<TokenExchangeResponse> {
+    static async exchangeCodeForToken(code: string, codeVerifier: string): Promise<TokenExchangeResponse> {
         try {
-            const codeVerifier = getCodeVerifier();
             if (!codeVerifier) {
                 return {
                     error: 'invalid_request',
@@ -81,7 +79,6 @@ export class OAuthTokenExchangeService {
                 };
             }
 
-            clearCodeVerifier();
             const authInfo: AuthInfo = {
                 access_token: data.access_token,
                 token_type: data.token_type || 'bearer',
@@ -106,10 +103,7 @@ export class OAuthTokenExchangeService {
             const response = await fetch('/api/oauth/token', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    grant_type: 'refresh_token',
-                    refresh_token: refreshToken,
-                }),
+                body: JSON.stringify({ grant_type: 'refresh_token', refresh_token: refreshToken }),
             });
             const data: TokenExchangeResponse = await response.json();
             if (data.error || !data.access_token) return data;
