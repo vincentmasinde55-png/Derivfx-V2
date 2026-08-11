@@ -22,17 +22,10 @@ interface OTPResponse {
     data: OTPResponseData;
 }
 
-/**
- * Deriv Options API account service.
- *
- * Uses the new REST flow for authenticated connections:
- * access token -> accounts -> account OTP -> authenticated wss URL.
- *
- * Deriv-App-ID is sent on every REST request as required by the new API.
- */
 export class DerivWSAccountsService {
     private static accountsFetchPromise: Promise<DerivAccount[]> | null = null;
     private static otpFetchPromises: Map<string, Promise<string>> = new Map();
+    private static readonly REQUEST_TIMEOUT_MS = 7000;
 
     private static getDerivWSBaseURL(): string {
         const environment = isProduction() ? 'production' : 'staging';
@@ -54,6 +47,22 @@ export class DerivWSAccountsService {
             Accept: 'application/json',
             'Content-Type': 'application/json',
         };
+    }
+
+    private static async fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), this.REQUEST_TIMEOUT_MS);
+
+        try {
+            return await fetch(url, { ...options, signal: controller.signal });
+        } catch (error) {
+            if (error instanceof DOMException && error.name === 'AbortError') {
+                throw new Error(`Deriv API request timed out after ${this.REQUEST_TIMEOUT_MS / 1000} seconds.`);
+            }
+            throw error;
+        } finally {
+            window.clearTimeout(timeoutId);
+        }
     }
 
     static clearCache(): void {
@@ -91,7 +100,7 @@ export class DerivWSAccountsService {
         this.accountsFetchPromise = (async () => {
             try {
                 const endpoint = `${this.getDerivWSBaseURL()}options/accounts`;
-                const response = await fetch(endpoint, {
+                const response = await this.fetchWithTimeout(endpoint, {
                     method: 'GET',
                     headers: this.getHeaders(accessToken),
                 });
@@ -127,7 +136,7 @@ export class DerivWSAccountsService {
         const otpPromise = (async () => {
             try {
                 const endpoint = `${this.getDerivWSBaseURL()}options/accounts/${encodeURIComponent(accountId)}/otp`;
-                const response = await fetch(endpoint, {
+                const response = await this.fetchWithTimeout(endpoint, {
                     method: 'POST',
                     headers: this.getHeaders(accessToken),
                     body: JSON.stringify({}),
@@ -145,7 +154,6 @@ export class DerivWSAccountsService {
                     throw new Error('Authenticated WebSocket URL not found in OTP response');
                 }
 
-                // Defensive normalization: WebSocket() must receive wss:// or ws://.
                 return websocketURL.replace(/^https:/, 'wss:');
             } catch (error) {
                 console.error('[DerivWS] Error fetching account OTP:', error);
@@ -161,25 +169,15 @@ export class DerivWSAccountsService {
     }
 
     static async getAuthenticatedWebSocketURL(accessToken: string): Promise<string> {
-        try {
-            let accounts = this.getStoredAccounts();
+        let accounts = this.getStoredAccounts();
 
-            if (!accounts?.length) {
-                accounts = await this.fetchAccountsList(accessToken);
-            }
+        if (!accounts?.length) accounts = await this.fetchAccountsList(accessToken);
+        if (!accounts?.length) throw new Error('No Deriv trading accounts were returned for this OAuth session.');
 
-            if (!accounts?.length) {
-                throw new Error('No Deriv trading accounts were returned for this OAuth session.');
-            }
+        const activeLoginId = localStorage.getItem('active_loginid');
+        const targetAccount =
+            (activeLoginId && accounts.find(account => account.account_id === activeLoginId)) || accounts[0];
 
-            const activeLoginId = localStorage.getItem('active_loginid');
-            const targetAccount =
-                (activeLoginId && accounts.find(account => account.account_id === activeLoginId)) || accounts[0];
-
-            return await this.fetchOTPWebSocketURL(accessToken, targetAccount.account_id);
-        } catch (error) {
-            console.error('[DerivWS] Error in authenticated WebSocket URL flow:', error);
-            throw error;
-        }
+        return this.fetchOTPWebSocketURL(accessToken, targetAccount.account_id);
     }
 }
