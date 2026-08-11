@@ -8,6 +8,8 @@ import { useLanguageFromURL } from '@/hooks/useLanguageFromURL';
 import { useOAuthCallback } from '@/hooks/useOAuthCallback';
 import { StoreProvider } from '@/hooks/useStore';
 import { OAuthTokenExchangeService } from '@/services/oauth-token-exchange.service';
+import { DerivWSAccountsService } from '@/services/derivws-accounts.service';
+import { api_base } from '@/external/bot-skeleton/services/api/api-base';
 import { initializeI18n, localize, TranslationProvider } from '@deriv-com/translations';
 import CoreStoreProvider from './CoreStoreProvider';
 import './app-root.scss';
@@ -67,10 +69,45 @@ function App() {
                     return;
                 }
 
+                // OAuth authentication alone does not initialize the trading client.
+                // Load the authenticated account list first, choose a valid account,
+                // then initialize the Deriv WebSocket. api_base.onsocketopen() will
+                // authorize that socket and populate the normal client store/balance.
+                const accounts = await DerivWSAccountsService.fetchAccountsList(response.access_token);
+                if (cancelled) return;
+
+                if (!accounts.length) {
+                    throw new Error('Deriv OAuth succeeded, but no trading accounts were returned.');
+                }
+
+                const activeAccount =
+                    accounts.find(account => account.account_type === 'real' && account.status === 'active') ||
+                    accounts.find(account => account.status === 'active') ||
+                    accounts[0];
+
+                localStorage.setItem('active_loginid', activeAccount.account_id);
+                localStorage.setItem('account_type', activeAccount.account_type === 'demo' ? 'demo' : 'real');
+
+                // Start the authenticated trading connection. This was previously
+                // missing, which left the UI's balance/account state loading forever.
+                await api_base.init(true);
+                if (cancelled) return;
+
                 cleanupURL();
-                window.dispatchEvent(new Event('derivfx-authenticated'));
+                window.dispatchEvent(
+                    new CustomEvent('derivfx-authenticated', {
+                        detail: { accounts, activeAccount: activeAccount.account_id },
+                    })
+                );
             } catch (oauthError) {
-                if (!cancelled) console.error('❌ Deriv OAuth callback failed:', oauthError);
+                if (!cancelled) {
+                    console.error('❌ Deriv OAuth/account initialization failed:', oauthError);
+                    window.dispatchEvent(
+                        new CustomEvent('derivfx-auth-error', {
+                            detail: oauthError instanceof Error ? oauthError.message : 'Unable to initialize Deriv account.',
+                        })
+                    );
+                }
             }
         };
 
