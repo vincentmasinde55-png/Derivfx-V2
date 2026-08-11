@@ -1,6 +1,8 @@
 import { clearCodeVerifier, getCodeVerifier } from '@/components/shared';
 import { ErrorLogger } from '@/utils/error-logger';
 
+const REDIRECT_URI = 'https://derivfx.site';
+
 interface TokenExchangeResponse {
     access_token?: string;
     token_type?: string;
@@ -59,7 +61,6 @@ export class OAuthTokenExchangeService {
                 };
             }
 
-            const redirectUrl = window.location.origin;
             const response = await fetch('/api/oauth/token', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -67,7 +68,7 @@ export class OAuthTokenExchangeService {
                     grant_type: 'authorization_code',
                     code,
                     code_verifier: codeVerifier,
-                    redirect_uri: redirectUrl,
+                    redirect_uri: REDIRECT_URI,
                 }),
             });
 
