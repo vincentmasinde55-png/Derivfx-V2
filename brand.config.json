@@ -1,110 +1,11 @@
 {
   "brand_name": "DerivFX",
   "brand_domain": "derivfx.site",
-  "brand_hostname": {
-    "staging": "derivfx.site",
-    "production": "derivfx.site"
-  },
+  "brand_hostname": {"staging": "derivfx.site", "production": "derivfx.site"},
   "domain_name": "DerivFX.site",
-
-  "colors": {
-    "primary": "#0066FF",
-    "secondary": "#0B1B3A",
-    "tertiary": "#00AEEF",
-    "success": "#10B981",
-    "danger": "#FF444F",
-    "warning": "#F59E0B",
-    "info": "#0EA5E9",
-    "neutral": "#64748B",
-    "black": "#020817",
-    "white": "#FFFFFF",
-
-    "grey": {
-      "50": "#F8FAFC",
-      "100": "#F1F5F9",
-      "200": "#E2E8F0",
-      "300": "#CBD5E1",
-      "400": "#94A3B8",
-      "500": "#64748B",
-      "600": "#475569",
-      "700": "#334155",
-      "800": "#1E293B",
-      "900": "#0B1224"
-    }
-  },
-
-  "typography": {
-    "font_family": {
-      "primary": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
-      "secondary": "Georgia, 'Times New Roman', Times, serif",
-      "monospace": "'Courier New', Courier, monospace"
-    },
-
-    "font_sizes": {
-      "xs": "0.75rem",
-      "sm": "0.875rem",
-      "base": "1rem",
-      "lg": "1.125rem",
-      "xl": "1.25rem",
-      "2xl": "1.5rem",
-      "3xl": "1.875rem",
-      "4xl": "2.25rem"
-    }
-  },
-
-  "color_variants": {
-    "light_variants": [100, 200, 300, 400, 500],
-    "dark_variants": [600, 700, 800, 900],
-    "opacity_variants": [10, 20, 30, 40, 50, 60, 70, 80, 90]
-  },
-
-  "theme_config": {
-    "enable_dynamic_themes": true,
-    "auto_generate_variants": true,
-    "css_variable_prefix": "--brand"
-  },
-
-  "platform": {
-    "name": "DerivFX",
-
-    "logo": {
-      "type": "component",
-      "component_name": "BrandLogo",
-      "alt_text": "DerivFX",
-      "link_url": "/",
-      "show_text": false,
-      "text": "DerivFX"
-    },
-
-    "footer": {
-      "enable_language_settings": false,
-      "enable_theme_toggle": false
-    },
-
-    "hostname": {
-      "production": {
-        "com": "derivfx.site"
-      },
-      "staging": {
-        "com": "derivfx.site"
-      }
-    },
-
-    "auth2_url": {
-      "production": "https://auth.deriv.com/oauth2/",
-      "staging": "https://staging-auth.deriv.com/oauth2/"
-    },
-
-    "derivws": {
-      "url": {
-        "staging": "https://staging-api.derivws.com/trading/v1/",
-        "production": "https://api.derivws.com/trading/v1/"
-      },
-
-      "directories": {
-        "options": "options/",
-        "derivatives": "derivatives/"
-      }
-    }
-  }
+  "colors": {"primary":"#0066FF","secondary":"#0B1B3A","tertiary":"#00AEEF","success":"#10B981","danger":"#FF444F","warning":"#F59E0B","info":"#0EA5E9","neutral":"#64748B","black":"#020817","white":"#FFFFFF","grey":{"50":"#F8FAFC","100":"#F1F5F9","200":"#E2E8F0","300":"#CBD5E1","400":"#94A3B8","500":"#64748B","600":"#475569","700":"#334155","800":"#1E293B","900":"#0B1224"}},
+  "typography": {"font_family":{"primary":"-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif","secondary":"Georgia, 'Times New Roman', Times, serif","monospace":"'Courier New', Courier, monospace"},"font_sizes":{"xs":"0.75rem","sm":"0.875rem","base":"1rem","lg":"1.125rem","xl":"1.25rem","2xl":"1.5rem","3xl":"1.875rem","4xl":"2.25rem"}},
+  "color_variants":{"light_variants":[100,200,300,400,500],"dark_variants":[600,700,800,900],"opacity_variants":[10,20,30,40,50,60,70,80,90]},
+  "theme_config":{"enable_dynamic_themes":true,"auto_generate_variants":true,"css_variable_prefix":"--brand"},
+  "platform": {"name":"DerivFX","logo":{"type":"asset","asset_path":"/deriv-logo.svg","component_name":"BrandLogo","alt_text":"DerivFX","link_url":"/","show_text":false,"text":"DerivFX"},"footer":{"enable_language_settings":false,"enable_theme_toggle":false},"hostname":{"production":{"com":"derivfx.site"},"staging":{"com":"derivfx.site"}},"auth2_url":{"production":"https://auth.deriv.com/oauth2/","staging":"https://staging-auth.deriv.com/oauth2/"},"derivws":{"url":{"staging":"https://staging-api.derivws.com/trading/v1/","production":"https://api.derivws.com/trading/v1/"},"directories":{"options":"options/","derivatives":"derivatives/"}}}
 }
