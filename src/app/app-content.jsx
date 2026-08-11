@@ -88,7 +88,7 @@ const AppContent = observer(() => {
         };
     }, [client.is_logged_in, client.loginid, handleMessage, connectionStatus]);
 
-    const init = React.useCallback(() => {
+    const initStores = React.useCallback(() => {
         ServerTime.init(common);
         app.setDBotEngineStores();
         ApiHelpers.setInstance(app.api_helpers_store);
@@ -96,22 +96,17 @@ const AppContent = observer(() => {
     }, [app, common, store]);
 
     const initializeDashboard = React.useCallback(async () => {
-        init();
+        initStores();
         setInitializationError('');
         setIsLoading(true);
 
         let lastError = null;
 
-        // The dashboard must not wait for the legacy DerivAPIBasic socket.
-        // The new public Options API is used directly for initial market data.
+        // CRITICAL: do NOT call api_base.init() here. That function creates the
+        // legacy DerivAPIBasic socket and waits for the old socket URL. The new
+        // public Options API is intentionally independent of that connection.
         for (let attempt = 0; attempt < 3; attempt += 1) {
             try {
-                if (!api_base.api) {
-                    await api_base.init();
-                }
-
-                if (!api_base.api) throw new Error('Deriv API client could not be created.');
-
                 const symbols = await Promise.race([
                     api_base.getActiveSymbols(),
                     new Promise((_, reject) =>
@@ -126,8 +121,6 @@ const AppContent = observer(() => {
                     throw new Error('New Deriv API returned no active markets.');
                 }
 
-                // Adapt the new API response to the existing bot UI without
-                // running the old startup promise/trading-times chain.
                 const activeSymbols = ApiHelpers.instance?.active_symbols;
                 if (!activeSymbols) throw new Error('DerivFX symbol helper is unavailable.');
 
@@ -152,14 +145,12 @@ const AppContent = observer(() => {
 
         setInitializationError(lastError instanceof Error ? lastError.message : 'Unable to load the new Deriv API.');
         setIsLoading(false);
-    }, [init]);
+    }, [initStores]);
 
     React.useEffect(() => {
         let cancelled = false;
         const start = async () => {
-            // AppRoot initializes the API in parallel. Do not require its
-            // connection-status observable to become OPEN before proceeding.
-            await sleep(500);
+            await sleep(200);
             if (!cancelled) initializeDashboard();
         };
         start();
