@@ -1,9 +1,12 @@
-import brandConfig from '../../brand.config.json';
 import { OAuthTokenExchangeService } from './oauth-token-exchange.service';
 import { DerivWSAccountsService, DerivAccount } from './derivws-accounts.service';
 
-const VERIFIER_KEY = 'derivfx_pkce_verifier';
-const STATE_KEY = 'derivfx_oauth_state';
+// Keep the PKCE/state keys identical to the callback/token-exchange flow.
+const VERIFIER_KEY = 'oauth_code_verifier';
+const VERIFIER_TIMESTAMP_KEY = 'oauth_code_verifier_timestamp';
+const STATE_KEY = 'oauth_csrf_token';
+const STATE_TIMESTAMP_KEY = 'oauth_csrf_token_timestamp';
+const REDIRECT_URI = 'https://derivfx.site';
 
 const toBase64Url = (bytes: Uint8Array) =>
     btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -23,18 +26,9 @@ export type OAuthMode = 'login' | 'signup';
 
 export class OAuthLoginService {
     private static clientId() {
-        const id = process.env.CLIENT_ID || process.env.APP_ID || process.env.NEXT_PUBLIC_APP_ID;
+        const id = process.env.APP_ID || process.env.CLIENT_ID || process.env.NEXT_PUBLIC_APP_ID;
         if (!id) throw new Error('Deriv OAuth client ID is missing from the Vercel environment.');
         return String(id);
-    }
-
-    private static legacyAppId() {
-        const legacy = process.env.LEGACY_APP_ID;
-        return legacy ? String(legacy) : '';
-    }
-
-    private static redirectUri() {
-        return window.location.origin;
     }
 
     static async start(mode: OAuthMode) {
@@ -42,22 +36,22 @@ export class OAuthLoginService {
         const state = randomString(32);
         const challenge = await challengeFor(verifier);
 
+        // Store the exact verifier that generated the challenge. This same value
+        // must still exist when Deriv redirects back with the authorization code.
         sessionStorage.setItem(VERIFIER_KEY, verifier);
+        sessionStorage.setItem(VERIFIER_TIMESTAMP_KEY, Date.now().toString());
         sessionStorage.setItem(STATE_KEY, state);
+        sessionStorage.setItem(STATE_TIMESTAMP_KEY, Date.now().toString());
         sessionStorage.setItem('derivfx_oauth_mode', mode);
 
         const url = new URL('https://auth.deriv.com/oauth2/auth');
         url.searchParams.set('response_type', 'code');
         url.searchParams.set('client_id', this.clientId());
-        url.searchParams.set('redirect_uri', this.redirectUri());
-        // The Deriv application shown in the dashboard has Trade enabled.
-        // Request only the permission required to read accounts/trade.
+        url.searchParams.set('redirect_uri', REDIRECT_URI);
         url.searchParams.set('scope', 'trade');
         url.searchParams.set('state', state);
         url.searchParams.set('code_challenge', challenge);
         url.searchParams.set('code_challenge_method', 'S256');
-        const legacyAppId = this.legacyAppId();
-        if (legacyAppId) url.searchParams.set('app_id', legacyAppId);
         if (mode === 'signup') url.searchParams.set('prompt', 'registration');
 
         window.location.assign(url.toString());
@@ -75,10 +69,8 @@ export class OAuthLoginService {
         const savedState = sessionStorage.getItem(STATE_KEY);
         const verifier = sessionStorage.getItem(VERIFIER_KEY);
         if (!savedState || !verifier || savedState !== returnedState) {
-            return { error: 'OAuth state verification failed. Please press Log in and try again.' };
+            return { error: 'OAuth state or PKCE verification data is missing. Please restart login.' };
         }
-
-        sessionStorage.setItem('code_verifier', verifier);
 
         try {
             const result = await OAuthTokenExchangeService.exchangeCodeForToken(code);
@@ -87,20 +79,16 @@ export class OAuthLoginService {
             }
 
             const accounts = await DerivWSAccountsService.fetchAccountsList(result.access_token);
-            if (!accounts.length) return { error: 'No Deriv trading accounts were returned for this account.' };
+            if (!accounts.length) return { error: 'No Deriv trading accounts were returned for this OAuth session.' };
 
             const preferred = accounts.find(account => account.account_type === 'demo') || accounts[0];
             localStorage.setItem('active_loginid', preferred.account_id);
             localStorage.setItem('account_type', preferred.account_type);
             localStorage.setItem('derivfx_authenticated', '1');
-            window.history.replaceState({}, document.title, this.redirectUri());
+            window.history.replaceState({}, document.title, REDIRECT_URI);
             return { accounts };
         } catch (error) {
             return { error: error instanceof Error ? error.message : 'Deriv authentication failed.' };
-        } finally {
-            sessionStorage.removeItem(VERIFIER_KEY);
-            sessionStorage.removeItem(STATE_KEY);
-            sessionStorage.removeItem('code_verifier');
         }
     }
 }
