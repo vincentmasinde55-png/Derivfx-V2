@@ -1,7 +1,9 @@
 import { OAuthTokenExchangeService } from './oauth-token-exchange.service';
 import { DerivWSAccountsService, DerivAccount } from './derivws-accounts.service';
 
-// Keep the PKCE/state keys identical to the callback/token-exchange flow.
+// OAuth state/PKCE data must survive the round-trip to auth.deriv.com.
+// sessionStorage is preferred, with localStorage as a browser-safe fallback
+// for cases where the browser/webview clears the session during navigation.
 const VERIFIER_KEY = 'oauth_code_verifier';
 const VERIFIER_TIMESTAMP_KEY = 'oauth_code_verifier_timestamp';
 const STATE_KEY = 'oauth_csrf_token';
@@ -22,6 +24,44 @@ const challengeFor = async (verifier: string) => {
     return toBase64Url(new Uint8Array(digest));
 };
 
+const safeSet = (storage: Storage, key: string, value: string) => {
+    try {
+        storage.setItem(key, value);
+    } catch {
+        // Private/restricted browser storage can fail; the other storage is tried.
+    }
+};
+
+const saveOAuthValue = (key: string, value: string) => {
+    safeSet(sessionStorage, key, value);
+    safeSet(localStorage, key, value);
+};
+
+const readOAuthValue = (key: string) => {
+    try {
+        return sessionStorage.getItem(key) || localStorage.getItem(key);
+    } catch {
+        try {
+            return localStorage.getItem(key);
+        } catch {
+            return null;
+        }
+    }
+};
+
+const clearOAuthValue = (key: string) => {
+    try {
+        sessionStorage.removeItem(key);
+    } catch {
+        // ignore
+    }
+    try {
+        localStorage.removeItem(key);
+    } catch {
+        // ignore
+    }
+};
+
 export type OAuthMode = 'login' | 'signup';
 
 export class OAuthLoginService {
@@ -36,13 +76,11 @@ export class OAuthLoginService {
         const state = randomString(32);
         const challenge = await challengeFor(verifier);
 
-        // Store the exact verifier that generated the challenge. This same value
-        // must still exist when Deriv redirects back with the authorization code.
-        sessionStorage.setItem(VERIFIER_KEY, verifier);
-        sessionStorage.setItem(VERIFIER_TIMESTAMP_KEY, Date.now().toString());
-        sessionStorage.setItem(STATE_KEY, state);
-        sessionStorage.setItem(STATE_TIMESTAMP_KEY, Date.now().toString());
-        sessionStorage.setItem('derivfx_oauth_mode', mode);
+        saveOAuthValue(VERIFIER_KEY, verifier);
+        saveOAuthValue(VERIFIER_TIMESTAMP_KEY, Date.now().toString());
+        saveOAuthValue(STATE_KEY, state);
+        saveOAuthValue(STATE_TIMESTAMP_KEY, Date.now().toString());
+        saveOAuthValue('derivfx_oauth_mode', mode);
 
         const url = new URL('https://auth.deriv.com/oauth2/auth');
         url.searchParams.set('response_type', 'code');
@@ -66,14 +104,15 @@ export class OAuthLoginService {
         if (oauthError) return { error: params.get('error_description') || oauthError };
         if (!code) return {};
 
-        const savedState = sessionStorage.getItem(STATE_KEY);
-        const verifier = sessionStorage.getItem(VERIFIER_KEY);
-        if (!savedState || !verifier || savedState !== returnedState) {
+        const savedState = readOAuthValue(STATE_KEY);
+        const verifier = readOAuthValue(VERIFIER_KEY);
+
+        if (!savedState || !verifier || !returnedState || savedState !== returnedState) {
             return { error: 'OAuth state or PKCE verification data is missing. Please restart login.' };
         }
 
         try {
-            const result = await OAuthTokenExchangeService.exchangeCodeForToken(code);
+            const result = await OAuthTokenExchangeService.exchangeCodeForToken(code, verifier);
             if (result.error || !result.access_token) {
                 return { error: result.error_description || result.error || 'Deriv authentication failed.' };
             }
@@ -85,6 +124,13 @@ export class OAuthLoginService {
             localStorage.setItem('active_loginid', preferred.account_id);
             localStorage.setItem('account_type', preferred.account_type);
             localStorage.setItem('derivfx_authenticated', '1');
+
+            clearOAuthValue(VERIFIER_KEY);
+            clearOAuthValue(VERIFIER_TIMESTAMP_KEY);
+            clearOAuthValue(STATE_KEY);
+            clearOAuthValue(STATE_TIMESTAMP_KEY);
+            clearOAuthValue('derivfx_oauth_mode');
+
             window.history.replaceState({}, document.title, REDIRECT_URI);
             return { accounts };
         } catch (error) {
