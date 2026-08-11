@@ -106,6 +106,7 @@ const Layout = observer(() => {
             {!isCallbackPage && <AppHeader isAuthenticating={isAuthenticating || !isInitialAuthCheckComplete} />}
             <Body><Outlet /></Body>
             {!isCallbackPage && isDesktop && <Footer />}
+            {/* DerivFX AI Scanner is intentionally a global floating overlay, independent of every dashboard tab. */}
             {!isCallbackPage && <DerivFxAiScanner />}
         </div>
     );
