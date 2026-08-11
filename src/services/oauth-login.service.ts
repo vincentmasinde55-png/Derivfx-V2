@@ -23,13 +23,27 @@ export type OAuthMode = 'login' | 'signup';
 
 export class OAuthLoginService {
     private static clientId() {
-        const id = process.env.CLIENT_ID || process.env.APP_ID;
-        if (!id) throw new Error('Deriv CLIENT_ID/APP_ID is missing from the Vercel environment.');
+        // CLIENT_ID is the new OAuth application's client ID.
+        // APP_ID is accepted as a fallback because the deployment may use
+        // the new Deriv application ID under that environment-variable name.
+        const id = process.env.CLIENT_ID || process.env.APP_ID || process.env.NEXT_PUBLIC_APP_ID;
+        if (!id) throw new Error('Deriv OAuth client ID is missing from the Vercel environment.');
         return String(id);
     }
 
+    private static legacyAppId() {
+        // Optional: only include this when the same project also maintains a
+        // Legacy Deriv API application.
+        const legacy = process.env.LEGACY_APP_ID;
+        return legacy ? String(legacy) : '';
+    }
+
+    /**
+     * Deriv requires an exact redirect URI match. Do not append a trailing
+     * slash or the current pathname unless that exact URL was registered.
+     */
     private static redirectUri() {
-        return `${window.location.origin}${window.location.pathname}`;
+        return window.location.origin;
     }
 
     static async start(mode: OAuthMode) {
@@ -41,7 +55,7 @@ export class OAuthLoginService {
         sessionStorage.setItem(STATE_KEY, state);
         sessionStorage.setItem('derivfx_oauth_mode', mode);
 
-        const url = new URL(`${brandConfig.platform.auth2_url.production}auth`);
+        const url = new URL('https://auth.deriv.com/oauth2/auth');
         url.searchParams.set('response_type', 'code');
         url.searchParams.set('client_id', this.clientId());
         url.searchParams.set('redirect_uri', this.redirectUri());
@@ -49,6 +63,8 @@ export class OAuthLoginService {
         url.searchParams.set('state', state);
         url.searchParams.set('code_challenge', challenge);
         url.searchParams.set('code_challenge_method', 'S256');
+        const legacyAppId = this.legacyAppId();
+        if (legacyAppId) url.searchParams.set('app_id', legacyAppId);
         if (mode === 'signup') url.searchParams.set('prompt', 'registration');
 
         window.location.assign(url.toString());
